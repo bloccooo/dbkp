@@ -4,7 +4,12 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+dbkp-core = { path = "../core" }
 ratatui = { version = "0.28.0", features = ["all-widgets", "crossterm"] }
 tui-input = { version = "*", features = ["crossterm"], default-features = false }
 color-eyre = "0.6.3"
 crossterm = "0.29.0"
+dirs = "5.0"
+anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"

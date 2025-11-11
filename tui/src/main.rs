@@ -1,30 +1,30 @@
-use std::io;
-
-use color_eyre::Result;
+use anyhow::{Result, anyhow};
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::{Terminal, prelude::Backend};
 
 use crate::{
-    app::{App, CurrentScreen},
-    database::model::DatabaseModel,
+    app::{App, CurrentView},
+    database::model::CurrentInput,
+    home::model::HomeModel,
 };
 mod app;
+mod configs;
 mod database;
 mod home;
 mod storage;
 mod ui;
 
 fn main() -> Result<()> {
-    color_eyre::install()?;
+    color_eyre::install().map_err(|e| anyhow!(e))?;
     let mut terminal = ratatui::init();
-    let mut app = App::new();
+    let mut app = App::new().map_err(|e| anyhow!(e))?;
     let _res = run_app(&mut terminal, &mut app);
     terminal.show_cursor()?;
     ratatui::restore();
     Ok(())
 }
 
-fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<bool> {
+fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<bool> {
     loop {
         terminal.draw(|f| ui::ui(f, app))?;
         let event = event::read()?;
@@ -34,29 +34,28 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
                 _ => {}
             }
 
-            match &app.current_screen {
-                CurrentScreen::Home(main_screen) => match key.code {
+            match &app.current_view {
+                CurrentView::Home(home_model) => match key.code {
                     KeyCode::Char('q') => {
-                        app.current_screen = CurrentScreen::Exiting;
+                        app.current_view = CurrentView::Exiting;
                     }
                     KeyCode::Down => {
-                        let mut main_screen = main_screen.clone();
-                        main_screen.select_next();
-                        app.current_screen = CurrentScreen::Home(main_screen);
+                        let mut home_model = home_model.clone();
+                        home_model.select_next();
+                        app.current_view = CurrentView::Home(home_model);
                     }
                     KeyCode::Up => {
-                        let mut main_screen = main_screen.clone();
-                        main_screen.select_previous();
-                        app.current_screen = CurrentScreen::Home(main_screen);
+                        let mut home_model = home_model.clone();
+                        home_model.select_previous();
+                        app.current_view = CurrentView::Home(home_model);
                     }
                     KeyCode::Enter => {
-                        if main_screen.selected_option_index == 2 {
-                            app.current_screen = CurrentScreen::Database(DatabaseModel::new());
-                        }
+                        let mut home_model = home_model.clone();
+                        app.current_view = home_model.get_target_view()?;
                     }
                     _ => {}
                 },
-                CurrentScreen::Exiting => match key.code {
+                CurrentView::Exiting => match key.code {
                     KeyCode::Char('y') => {
                         return Ok(true);
                     }
@@ -65,27 +64,40 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
                     }
                     _ => {}
                 },
-                CurrentScreen::Storage => todo!(),
-                CurrentScreen::Database(database_screen) => match key.code {
+                CurrentView::Database(database_model) => match key.code {
                     KeyCode::Down => {
-                        let mut database_screen = database_screen.clone();
-                        database_screen.next_input();
-                        app.current_screen = CurrentScreen::Database(database_screen);
+                        let mut database_model = database_model.clone();
+                        database_model.next_input();
+                        app.current_view = CurrentView::Database(database_model);
+                    }
+                    KeyCode::Tab => {
+                        let mut database_model = database_model.clone();
+                        database_model.next_input();
+                        app.current_view = CurrentView::Database(database_model);
                     }
                     KeyCode::Up => {
-                        let mut database_screen = database_screen.clone();
-                        database_screen.previous_input();
-                        app.current_screen = CurrentScreen::Database(database_screen);
+                        let mut database_model = database_model.clone();
+                        database_model.previous_input();
+                        app.current_view = CurrentView::Database(database_model);
                     }
                     KeyCode::Enter => {
-                        let mut database_screen = database_screen.clone();
-                        database_screen.next_input();
-                        app.current_screen = CurrentScreen::Database(database_screen);
+                        let mut database_model = database_model.clone();
+
+                        match database_model.current_input {
+                            CurrentInput::Password => {
+                                database_model.save()?;
+                                app.current_view = CurrentView::Home(HomeModel::new()?);
+                            }
+                            _ => {
+                                database_model.next_input();
+                                app.current_view = CurrentView::Database(database_model);
+                            }
+                        }
                     }
                     _ => {
-                        let mut database_screen = database_screen.clone();
-                        database_screen.handle_event(&event);
-                        app.current_screen = CurrentScreen::Database(database_screen);
+                        let mut database_model = database_model.clone();
+                        database_model.handle_event(&event);
+                        app.current_view = CurrentView::Database(database_model);
                     }
                 },
             }
