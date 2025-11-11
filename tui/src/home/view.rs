@@ -1,0 +1,51 @@
+use ratatui::{
+    Frame,
+    style::{Color, Style},
+    symbols,
+    widgets::{Block, Borders, HighlightSpacing, List, ListItem},
+};
+
+use crate::home::model::HomeModel;
+
+pub struct HomeView {
+    home_model: HomeModel,
+}
+
+impl HomeView {
+    pub fn new(home_model: HomeModel) -> Self {
+        HomeView { home_model }
+    }
+
+    pub fn render(&self, frame: &mut Frame) {
+        let block = Block::new()
+            .borders(Borders::all())
+            .border_set(symbols::border::ROUNDED);
+
+        let items: Vec<ListItem> = self
+            .home_model
+            .options
+            .iter()
+            .map(|it| {
+                if (self.home_model.selected_option_index as usize)
+                    == self
+                        .home_model
+                        .options
+                        .iter()
+                        .position(|x| x == it)
+                        .unwrap()
+                {
+                    ListItem::from(it.as_str()).style(Style::default().bg(Color::LightBlue))
+                } else {
+                    ListItem::from(it.as_str())
+                }
+            })
+            .collect();
+
+        let list = List::new(items)
+            .block(block)
+            .highlight_symbol(">")
+            .highlight_spacing(HighlightSpacing::Always);
+
+        frame.render_widget(list, frame.area());
+    }
+}

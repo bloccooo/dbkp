@@ -2,5 +2,6 @@
 members = [
     "core",
     "cli",
+    "tui",
     "app/src-tauri"
 ]
