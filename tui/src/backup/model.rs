@@ -170,6 +170,7 @@ impl Model for BackupModel {
     fn handle_event(&mut self, event: &Event) -> Result<Option<Box<dyn View>>> {
         if let Event::Key(key) = event {
             match key.code {
+                KeyCode::Esc => return Ok(Some(Box::new(HomeView::new(HomeModel::new()?)))),
                 KeyCode::Down => {
                     self.select_next();
                 }

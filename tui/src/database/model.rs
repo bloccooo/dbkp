@@ -167,6 +167,11 @@ impl Model for DatabaseModel {
 
         if let Event::Key(key) = event {
             match key.code {
+                KeyCode::Esc => return Ok(Some(Box::new(HomeView::new(HomeModel::new()?)))),
+                _ => {}
+            }
+
+            match key.code {
                 KeyCode::Down => {
                     self.next_input();
                 }

@@ -87,6 +87,7 @@ impl Model for HomeModel {
     fn handle_event(&mut self, event: &Event) -> Result<Option<Box<dyn View>>> {
         if let Event::Key(key) = event {
             match key.code {
+                KeyCode::Esc => return Ok(None),
                 KeyCode::Down => {
                     self.select_next();
                 }

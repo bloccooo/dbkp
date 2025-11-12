@@ -146,6 +146,9 @@ impl Model for StorageModel {
             if let Some(current_config) = &self.current_storage_config {
                 match current_config {
                     StorageConfig::Local(_) => match key.code {
+                        KeyCode::Esc => {
+                            return Ok(Some(Box::new(StorageView::new(StorageModel::new()))));
+                        }
                         KeyCode::Down => {
                             self.next_input();
                         }
@@ -173,6 +176,7 @@ impl Model for StorageModel {
                 Box::new(LocalStorageView::new(self.clone()))
             } else {
                 match key.code {
+                    KeyCode::Esc => return Ok(Some(Box::new(HomeView::new(HomeModel::new()?)))),
                     KeyCode::Down => {
                         self.select_next();
                     }

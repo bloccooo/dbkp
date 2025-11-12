@@ -5,7 +5,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     prelude::Backend,
     style::{Color, Style},
-    widgets::{Block, Borders},
+    widgets::{Block, Borders, Paragraph, Wrap},
 };
 
 use crate::{app::App, model::Model};
@@ -56,28 +56,27 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<bool
         let event = event::read()?;
         let mut exit = false;
         terminal.draw(|f| {
-            if let Event::Key(key) = event {
-                match key.code {
-                    KeyCode::Esc => exit = true,
-                    _ => {}
+            let mut model: Box<dyn Model> = app.view.get_model();
+            match model.handle_event(&event) {
+                Ok(some_view) => {
+                    if let Some(view) = some_view {
+                        app.view = view;
+                    } else {
+                        exit = true
+                    }
                 }
+                Err(e) => {
+                    let popup_block = Block::default()
+                        .title("Error")
+                        .borders(Borders::ALL)
+                        .style(Style::default().bg(Color::Red));
 
-                let mut model: Box<dyn Model> = app.view.get_model();
-                match model.handle_event(&event) {
-                    Ok(some_view) => {
-                        if let Some(view) = some_view {
-                            app.view = view;
-                        }
-                    }
-                    Err(e) => {
-                        let popup_block = Block::default()
-                            .title(e.to_string())
-                            .borders(Borders::ALL)
-                            .style(Style::default().bg(Color::Red));
+                    let paragraph = Paragraph::new(e.to_string())
+                        .block(popup_block)
+                        .wrap(Wrap { trim: true });
 
-                        let area = centered_rect(60, 25, f.area());
-                        f.render_widget(popup_block, area);
-                    }
+                    let area = centered_rect(60, 25, f.area());
+                    f.render_widget(paragraph, area);
                 }
             }
 
