@@ -1,7 +1,7 @@
-use anyhow::{Result, anyhow};
+use anyhow::{Error, Result, anyhow};
 use crossterm::event::{self};
 use ratatui::{
-    Terminal,
+    Frame, Terminal,
     layout::{Constraint, Direction, Layout, Rect},
     prelude::Backend,
     style::{Color, Style},
@@ -51,36 +51,60 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         .split(popup_layout[1])[1] // Return the middle chunk
 }
 
+fn render_error(error: Error, frame: &mut Frame) {
+    let popup_block = Block::default()
+        .title("Error")
+        .borders(Borders::ALL)
+        .style(Style::default().bg(Color::Red));
+
+    let paragraph = Paragraph::new(error.to_string())
+        .block(popup_block)
+        .wrap(Wrap { trim: true });
+
+    let area = centered_rect(60, 25, frame.area());
+    frame.render_widget(paragraph, area);
+}
+
 fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<bool> {
     loop {
         let event = event::read()?;
         let mut exit = false;
         terminal.draw(|f| {
             let mut model: Box<dyn Model> = app.view.get_model();
+
             match model.handle_event(&event) {
                 Ok(some_view) => {
                     if let Some(view) = some_view {
                         app.view = view;
+                        app.view.render(f)
                     } else {
                         exit = true
                     }
                 }
                 Err(e) => {
-                    let popup_block = Block::default()
-                        .title("Error")
-                        .borders(Borders::ALL)
-                        .style(Style::default().bg(Color::Red));
-
-                    let paragraph = Paragraph::new(e.to_string())
-                        .block(popup_block)
-                        .wrap(Wrap { trim: true });
-
-                    let area = centered_rect(60, 25, f.area());
-                    f.render_widget(paragraph, area);
+                    render_error(e, f);
+                    app.view.render(f)
                 }
             }
+        })?;
 
-            app.view.render(f);
+        terminal.draw(|f| {
+            let mut model: Box<dyn Model> = app.view.get_model();
+
+            // Hooks are useful to run logic just after the rendering happens
+            match model.run_hook() {
+                Ok(some_view) => match some_view {
+                    Some(view) => {
+                        app.view = view;
+                        app.view.render(f)
+                    }
+                    None => app.view.render(f),
+                },
+                Err(e) => {
+                    app.view.render(f);
+                    render_error(e, f);
+                }
+            };
         })?;
 
         if exit {

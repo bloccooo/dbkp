@@ -84,6 +84,10 @@ impl HomeModel {
 }
 
 impl Model for HomeModel {
+    fn run_hook(&mut self) -> Result<Option<Box<dyn View>>> {
+        Ok(None)
+    }
+
     fn handle_event(&mut self, event: &Event) -> Result<Option<Box<dyn View>>> {
         if let Event::Key(key) = event {
             match key.code {

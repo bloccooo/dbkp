@@ -167,6 +167,82 @@ impl BackupModel {
 }
 
 impl Model for BackupModel {
+    fn run_hook(&mut self) -> Result<Option<Box<dyn View>>> {
+        let database_configs = self.configs.get_database_configs();
+        let storage_configs = self.configs.get_storage_configs();
+
+        let database_config = match &self.selected_database_id {
+            Some(id) => database_configs.iter().find(|config| config.id == *id),
+            None => None,
+        };
+
+        let storage_config = match &self.selected_storage_id {
+            Some(id) => storage_configs.iter().find(|config| match config {
+                StorageConfig::S3(config) => config.id == *id,
+                StorageConfig::Local(config) => config.id == *id,
+            }),
+            None => None,
+        };
+
+        if database_config.is_some() && storage_config.is_some() {
+            let database_config = database_config.unwrap().clone();
+            let storage_config = storage_config.unwrap().clone();
+
+            self.selected_database_id = None;
+            self.selected_storage_id = None;
+
+            // Create temp tokio runtime and run it in a separate thread to keep the sync flow
+            let runtime = tokio::runtime::Runtime::new().unwrap();
+            let thread: std::thread::JoinHandle<std::result::Result<(), Error>> =
+                std::thread::spawn(move || {
+                    runtime.block_on(async move {
+                        let database_connection = match DatabaseConnection::new(database_config)
+                            .await
+                        {
+                            Ok(connection) => connection,
+                            Err(e) => {
+                                return Err(anyhow!("Failed to create database connection: {}", e));
+                            }
+                        };
+
+                        let storage_provider = match StorageProvider::new(storage_config) {
+                            Ok(provider) => provider,
+                            Err(e) => {
+                                return Err(anyhow!("Failed to create storage provider: {}", e));
+                            }
+                        };
+
+                        let db_bkp = DbBkp::new(database_connection, storage_provider);
+                        match db_bkp.backup().await {
+                            Ok(_) => Ok(()),
+                            Err(e) => Err(anyhow!("Failed to backup: {}", e)),
+                        }
+                    })
+                });
+
+            self.selected_database_id = None;
+            self.selected_storage_id = None;
+
+            match thread.join() {
+                Ok(Ok(_)) => {
+                    return Ok(Some(Box::new(HomeView::new(HomeModel::new()?))));
+                }
+                Ok(Err(e)) => {
+                    self.selected_database_id = None;
+                    self.selected_storage_id = None;
+                    return Err(anyhow!("{}", e));
+                }
+                Err(e) => {
+                    self.selected_database_id = None;
+                    self.selected_storage_id = None;
+                    return Err(anyhow!("Thread panicked during backup operation: {:?}", e));
+                }
+            }
+        }
+
+        Ok(Some(Box::new(BackupView::new(self.clone()))))
+    }
+
     fn handle_event(&mut self, event: &Event) -> Result<Option<Box<dyn View>>> {
         if let Event::Key(key) = event {
             match key.code {
@@ -179,77 +255,6 @@ impl Model for BackupModel {
                 }
                 KeyCode::Enter => {
                     self.save_selection();
-
-                    let database_configs = self.configs.get_database_configs();
-                    let storage_configs = self.configs.get_storage_configs();
-
-                    let database_config = match &self.selected_database_id {
-                        Some(id) => database_configs.iter().find(|config| config.id == *id),
-                        None => None,
-                    };
-
-                    let storage_config = match &self.selected_storage_id {
-                        Some(id) => storage_configs.iter().find(|config| match config {
-                            StorageConfig::S3(config) => config.id == *id,
-                            StorageConfig::Local(config) => config.id == *id,
-                        }),
-                        None => None,
-                    };
-
-                    if database_config.is_some() && storage_config.is_some() {
-                        let database_config = database_config.unwrap().clone();
-                        let storage_config = storage_config.unwrap().clone();
-
-                        // Create temp tokio runtime and run it in a separate thread to keep the sync flow
-                        let runtime = tokio::runtime::Runtime::new().unwrap();
-                        let thread: std::thread::JoinHandle<std::result::Result<(), Error>> =
-                            std::thread::spawn(move || {
-                                runtime.block_on(async move {
-                                    let database_connection =
-                                        match DatabaseConnection::new(database_config).await {
-                                            Ok(connection) => connection,
-                                            Err(e) => {
-                                                return Err(anyhow!(
-                                                    "Failed to create database connection: {}",
-                                                    e
-                                                ));
-                                            }
-                                        };
-
-                                    let storage_provider =
-                                        match StorageProvider::new(storage_config) {
-                                            Ok(provider) => provider,
-                                            Err(e) => {
-                                                return Err(anyhow!(
-                                                    "Failed to create storage provider: {}",
-                                                    e
-                                                ));
-                                            }
-                                        };
-
-                                    let db_bkp = DbBkp::new(database_connection, storage_provider);
-                                    match db_bkp.backup().await {
-                                        Ok(_) => Ok(()),
-                                        Err(e) => Err(anyhow!("Failed to backup: {}", e)),
-                                    }
-                                })
-                            });
-
-                        match thread.join() {
-                            Ok(Ok(_)) => {
-                                return Ok(Some(Box::new(HomeView::new(HomeModel::new()?))));
-                            }
-                            Ok(Err(e)) => {
-                                return Err(anyhow!("Backup operation failed: {}", e));
-                            }
-                            Err(e) => {
-                                return Err(anyhow!(
-                                    "Thread panicked during backup operation: {:?}",
-                                    e
-                                ));
-                            }
-                        }
-                    }
                 }
                 KeyCode::Left => {
                     self.selection_mode = match self.selection_mode {

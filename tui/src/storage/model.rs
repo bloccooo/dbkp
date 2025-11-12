@@ -130,6 +130,10 @@ impl StorageModel {
 }
 
 impl Model for StorageModel {
+    fn run_hook(&mut self) -> Result<Option<Box<dyn View>>> {
+        Ok(None)
+    }
+
     fn handle_event(&mut self, event: &Event) -> Result<Option<Box<dyn View>>> {
         match self.current_input {
             CurrentInput::ConfigName => {

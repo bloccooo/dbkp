@@ -140,6 +140,10 @@ impl DatabaseModel {
 }
 
 impl Model for DatabaseModel {
+    fn run_hook(&mut self) -> Result<Option<Box<dyn View>>> {
+        Ok(None)
+    }
+
     fn handle_event(&mut self, event: &Event) -> Result<Option<Box<dyn View>>> {
         match self.current_input {
             CurrentInput::Type => {

@@ -4,7 +4,7 @@ use ratatui::{
     layout::{Constraint, Flex, Layout},
     style::{Color, Style},
     symbols,
-    widgets::{Block, Borders, HighlightSpacing, List, ListItem},
+    widgets::{Block, Borders, HighlightSpacing, List, ListItem, Paragraph, Wrap},
 };
 
 use crate::{
@@ -34,6 +34,14 @@ impl View for BackupView {
     }
 
     fn render(&self, frame: &mut Frame) {
+        if self.backup_model.selected_database_id.is_some()
+            && self.backup_model.selected_storage_id.is_some()
+        {
+            let paragraph = Paragraph::new("Loading...").wrap(Wrap { trim: true });
+            frame.render_widget(paragraph, frame.area());
+            return;
+        }
+
         let [column1, column2] =
             Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)])
                 .flex(Flex::Center)
