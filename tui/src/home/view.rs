@@ -38,7 +38,7 @@ impl View for HomeView {
             .options
             .iter()
             .map(|it| {
-                if (self.home_model.selected_option_index as usize)
+                if (self.home_model.highlighted_option_index as usize)
                     == self
                         .home_model
                         .options

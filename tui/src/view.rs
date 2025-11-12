@@ -2,7 +2,7 @@ use ratatui::Frame;
 
 use crate::model::Model;
 
-pub trait View: std::fmt::Debug {
+pub trait View: std::fmt::Debug + Send + Sync {
     fn render(&self, frame: &mut Frame);
     fn clone_box(&self) -> Box<dyn View>;
     fn get_model(&self) -> Box<dyn Model>;

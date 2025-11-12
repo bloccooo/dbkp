@@ -42,7 +42,7 @@ impl View for StorageView {
             .storage_type_options
             .iter()
             .map(|it| {
-                if (self.storage_model.selected_option_index as usize)
+                if (self.storage_model.highlighted_option_index as usize)
                     == self
                         .storage_model
                         .storage_type_options

@@ -1,4 +1,5 @@
 use anyhow::{Error, Result, anyhow};
+use async_trait::async_trait;
 use crossterm::event::{Event, KeyCode};
 use dbkp_core::{
     DbBkp,
@@ -28,6 +29,7 @@ pub struct BackupModel {
     pub highlight_storage_id: String,
     pub selected_database_id: Option<String>,
     pub selected_storage_id: Option<String>,
+    pub next_view: Option<Box<dyn View>>,
 }
 
 impl BackupModel {
@@ -53,6 +55,7 @@ impl BackupModel {
                     highlight_storage_id: storage_id,
                     selected_database_id: None,
                     selected_storage_id: None,
+                    next_view: None,
                 });
             }
         }
@@ -166,7 +169,12 @@ impl BackupModel {
     }
 }
 
+#[async_trait]
 impl Model for BackupModel {
+    fn get_next_view(&mut self) -> Result<Option<Box<dyn View>>> {
+        Ok(self.next_view.clone())
+    }
+
     fn run_hook(&mut self) -> Result<Option<Box<dyn View>>> {
         let database_configs = self.configs.get_database_configs();
         let storage_configs = self.configs.get_storage_configs();
@@ -243,10 +251,10 @@ impl Model for BackupModel {
         Ok(Some(Box::new(BackupView::new(self.clone()))))
     }
 
-    fn handle_event(&mut self, event: &Event) -> Result<Option<Box<dyn View>>> {
+    async fn handle_event(&mut self, event: &Event) -> Result<()> {
         if let Event::Key(key) = event {
             match key.code {
-                KeyCode::Esc => return Ok(Some(Box::new(HomeView::new(HomeModel::new()?)))),
+                KeyCode::Esc => self.next_view = Some(Box::new(HomeView::new(HomeModel::new()?))),
                 KeyCode::Down => {
                     self.select_next();
                 }
@@ -272,6 +280,7 @@ impl Model for BackupModel {
             }
         }
 
-        Ok(Some(Box::new(BackupView::new(self.clone()))))
+        self.next_view = Some(Box::new(BackupView::new(self.clone())));
+        Ok(())
     }
 }

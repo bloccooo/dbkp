@@ -1,4 +1,5 @@
 use anyhow::Result;
+use async_trait::async_trait;
 use crossterm::event::{Event, KeyCode};
 
 use crate::{
@@ -13,8 +14,10 @@ use crate::{
 
 #[derive(Clone, Debug)]
 pub struct HomeModel {
+    pub exit: bool,
     pub options: Vec<String>,
-    pub selected_option_index: i8,
+    pub highlighted_option_index: i8,
+    pub selected_options_index: Option<i8>,
 }
 
 impl HomeModel {
@@ -38,78 +41,90 @@ impl HomeModel {
         };
 
         let home_model = HomeModel {
+            exit: false,
             options,
-            selected_option_index: 0,
+            selected_options_index: None,
+            highlighted_option_index: 0,
         };
 
         Ok(home_model)
     }
 
-    pub fn select_next(&mut self) {
-        self.selected_option_index = self.selected_option_index + 1;
+    pub fn go_next(&mut self) {
+        self.highlighted_option_index = self.highlighted_option_index + 1;
 
-        if self.selected_option_index >= self.options.len() as i8 {
-            self.selected_option_index = 0;
+        if self.highlighted_option_index >= self.options.len() as i8 {
+            self.highlighted_option_index = 0;
         }
     }
 
-    pub fn select_previous(&mut self) {
-        self.selected_option_index = self.selected_option_index - 1;
+    pub fn go_previous(&mut self) {
+        self.highlighted_option_index = self.highlighted_option_index - 1;
 
-        if self.selected_option_index < 0 {
-            self.selected_option_index = self.options.len() as i8 - 1;
+        if self.highlighted_option_index < 0 {
+            self.highlighted_option_index = self.options.len() as i8 - 1;
         }
-    }
-
-    pub fn get_target_view(&mut self) -> Result<Box<dyn View>> {
-        let option = self
-            .options
-            .get(self.selected_option_index as usize)
-            .cloned();
-
-        if let Some(option) = option {
-            if option == "Add DB Connection".to_string() {
-                return Ok(Box::new(DatabaseView::new(DatabaseModel::new())));
-            } else if option == "Add Storage Provider" {
-                return Ok(Box::new(StorageView::new(StorageModel::new())));
-            } else if option == "Backup DB" {
-                let view = BackupView::new(BackupModel::new()?);
-                return Ok(Box::new(view));
-            }
-        }
-
-        let view = Box::new(HomeView::new(HomeModel::new()?));
-        Ok(view)
     }
 }
 
+#[async_trait]
 impl Model for HomeModel {
     fn run_hook(&mut self) -> Result<Option<Box<dyn View>>> {
         Ok(None)
     }
 
-    fn handle_event(&mut self, event: &Event) -> Result<Option<Box<dyn View>>> {
+    fn get_next_view(&mut self) -> Result<Option<Box<dyn View>>> {
+        if self.exit {
+            return Ok(None);
+        }
+
+        match self.selected_options_index {
+            Some(index) => {
+                let option = self.options.get(index as usize).cloned();
+
+                if let Some(option) = option {
+                    if option == "Add DB Connection".to_string() {
+                        return Ok(Some(Box::new(DatabaseView::new(DatabaseModel::new()))));
+                    } else if option == "Add Storage Provider" {
+                        return Ok(Some(Box::new(StorageView::new(StorageModel::new()))));
+                    } else if option == "Backup DB" {
+                        let view = BackupView::new(BackupModel::new()?);
+                        return Ok(Some(Box::new(view)));
+                    }
+                }
+            }
+            None => {}
+        }
+
+        Ok(Some(Box::new(HomeView::new(self.clone()))))
+    }
+
+    async fn handle_event(&mut self, event: &Event) -> Result<()> {
         if let Event::Key(key) = event {
             match key.code {
-                KeyCode::Esc => return Ok(None),
+                KeyCode::Esc => {
+                    self.exit = true;
+                }
                 KeyCode::Down => {
-                    self.select_next();
+                    self.go_next();
                 }
                 KeyCode::Up => {
-                    self.select_previous();
+                    self.go_previous();
                 }
                 KeyCode::Right => {
-                    let target_view = self.get_target_view()?;
-                    return Ok(Some(target_view));
+                    let _ = self
+                        .selected_options_index
+                        .insert(self.highlighted_option_index);
                 }
                 KeyCode::Enter => {
-                    let target_view = self.get_target_view()?;
-                    return Ok(Some(target_view));
+                    let _ = self
+                        .selected_options_index
+                        .insert(self.highlighted_option_index);
                 }
                 _ => {}
             }
         }
 
-        Ok(Some(Box::new(HomeView::new(self.clone()))))
+        Ok(())
     }
 }
