@@ -2,6 +2,7 @@ use anyhow::Result;
 use crossterm::event::{Event, KeyCode};
 
 use crate::{
+    backup::{model::BackupModel, view::BackupView},
     configs::Configs,
     database::{model::DatabaseModel, view::DatabaseView},
     home::view::HomeView,
@@ -71,6 +72,9 @@ impl HomeModel {
                 return Ok(Box::new(DatabaseView::new(DatabaseModel::new())));
             } else if option == "Add Storage Provider" {
                 return Ok(Box::new(StorageView::new(StorageModel::new())));
+            } else if option == "Backup DB" {
+                let view = BackupView::new(BackupModel::new()?);
+                return Ok(Box::new(view));
             }
         }
 

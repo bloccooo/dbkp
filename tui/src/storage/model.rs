@@ -102,8 +102,10 @@ impl StorageModel {
                 return Err(anyhow!("Not implemented"));
             } else if option == "Local" {
                 let mut model = self.clone();
+                let id = cuid2::create_id();
+
                 model.current_storage_config = Some(StorageConfig::Local(LocalStorageConfig {
-                    id: "1".to_string(),
+                    id,
                     location: "".to_string(),
                     name: "".to_string(),
                 }));

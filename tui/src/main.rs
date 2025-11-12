@@ -1,9 +1,16 @@
 use anyhow::{Result, anyhow};
 use crossterm::event::{self, Event, KeyCode};
-use ratatui::{Terminal, prelude::Backend};
+use ratatui::{
+    Terminal,
+    layout::{Constraint, Direction, Layout, Rect},
+    prelude::Backend,
+    style::{Color, Style},
+    widgets::{Block, Borders},
+};
 
 use crate::{app::App, model::Model};
 mod app;
+mod backup;
 mod configs;
 mod database;
 mod home;
@@ -22,21 +29,63 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    // Cut the given rectangle into three vertical pieces
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Percentage(percent_y),
+            Constraint::Percentage((100 - percent_y) / 2),
+        ])
+        .split(r);
+
+    // Then cut the middle vertical piece into three width-wise pieces
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_x),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(popup_layout[1])[1] // Return the middle chunk
+}
+
 fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<bool> {
     loop {
-        terminal.draw(|f| app.view.render(f))?;
-
         let event = event::read()?;
-        if let Event::Key(key) = event {
-            match key.code {
-                KeyCode::Esc => return Ok(true),
-                _ => {}
+        let mut exit = false;
+        terminal.draw(|f| {
+            if let Event::Key(key) = event {
+                match key.code {
+                    KeyCode::Esc => exit = true,
+                    _ => {}
+                }
+
+                let mut model: Box<dyn Model> = app.view.get_model();
+                match model.handle_event(&event) {
+                    Ok(some_view) => {
+                        if let Some(view) = some_view {
+                            app.view = view;
+                        }
+                    }
+                    Err(e) => {
+                        let popup_block = Block::default()
+                            .title(e.to_string())
+                            .borders(Borders::ALL)
+                            .style(Style::default().bg(Color::Red));
+
+                        let area = centered_rect(60, 25, f.area());
+                        f.render_widget(popup_block, area);
+                    }
+                }
             }
 
-            let mut model: Box<dyn Model> = app.view.get_model();
-            if let Some(new_view) = model.handle_event(&event)? {
-                app.view = new_view;
-            }
+            app.view.render(f);
+        })?;
+
+        if exit {
+            break Ok(true);
         }
     }
 }

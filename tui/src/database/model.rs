@@ -72,11 +72,53 @@ impl DatabaseModel {
         };
     }
 
+    fn input_filled(&self) -> bool {
+        !self.name_input.value().is_empty()
+            && !self.database_input.value().is_empty()
+            && !self.host_input.value().is_empty()
+            && !self.port_input.value().is_empty()
+            && !self.username_input.value().is_empty()
+            && !self.password_input.value().is_empty()
+    }
+
+    fn validate_inputs(&self) -> Result<()> {
+        if self.name_input.value().is_empty() {
+            return Err(anyhow!("Name is required"));
+        }
+
+        if self.database_input.value().is_empty() {
+            return Err(anyhow!("Database is required"));
+        }
+
+        if self.host_input.value().is_empty() {
+            return Err(anyhow!("Host is required"));
+        }
+
+        if self.username_input.value().is_empty() {
+            return Err(anyhow!("Username is required"));
+        }
+
+        if self.password_input.value().is_empty() {
+            return Err(anyhow!("Password is required"));
+        }
+
+        match self.port_input.value().parse::<u16>() {
+            Ok(_) => {}
+            Err(e) => return Err(anyhow!("Invalid port: {}", e)),
+        };
+
+        Ok(())
+    }
+
     pub fn save(&mut self) -> Result<()> {
         let mut config = Configs::load()?;
 
+        let id = cuid2::create_id();
+
+        self.validate_inputs()?;
+
         let new_database_config = DatabaseConfig {
-            id: "1".to_string(),
+            id,
             name: self.name_input.value().to_string(),
             connection_type: match self.type_input.value() {
                 "postgresql" => ConnectionType::PostgreSql,
@@ -135,16 +177,12 @@ impl Model for DatabaseModel {
                     self.previous_input();
                 }
                 KeyCode::Enter => {
-                    let mut database_model = self.clone();
-
-                    match database_model.current_input {
-                        CurrentInput::Password => {
-                            database_model.save()?;
-                            return Ok(Some(Box::new(HomeView::new(HomeModel::new()?))));
-                        }
-                        _ => {
-                            database_model.next_input();
-                        }
+                    if self.input_filled() {
+                        self.save()?;
+                        let home_model = HomeModel::new()?;
+                        return Ok(Some(Box::new(HomeView::new(home_model))));
+                    } else {
+                        self.next_input();
                     }
                 }
                 _ => {}
