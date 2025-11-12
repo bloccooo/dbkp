@@ -1,7 +1,7 @@
 use anyhow::{Result, anyhow};
 use dbkp_core::{databases::DatabaseConfig, storage::provider::StorageConfig};
 use serde::{Deserialize, Serialize};
-use std::{fs, path::PathBuf};
+use std::{borrow::Borrow, fs, path::PathBuf};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Configs {
@@ -49,8 +49,25 @@ impl Configs {
         return self.database_configs.clone();
     }
 
-    pub fn add_database_config(&mut self, database_config: DatabaseConfig) -> Result<()> {
-        self.database_configs.push(database_config);
+    pub fn add_database_config<D>(&mut self, database_config: D) -> Result<()>
+    where
+        D: Borrow<DatabaseConfig>,
+    {
+        self.database_configs.push(database_config.borrow().clone());
+        self.save()?;
+
+        Ok(())
+    }
+
+    pub fn get_storage_configs(&self) -> Vec<StorageConfig> {
+        return self.storage_configs.clone();
+    }
+
+    pub fn add_storage_config<S>(&mut self, storage_config: S) -> Result<()>
+    where
+        S: Borrow<StorageConfig>,
+    {
+        self.storage_configs.push(storage_config.borrow().clone());
         self.save()?;
 
         Ok(())

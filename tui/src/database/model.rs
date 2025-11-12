@@ -3,7 +3,7 @@ use crossterm::event::Event;
 use dbkp_core::databases::{ConnectionType, DatabaseConfig};
 use tui_input::{Input, backend::crossterm::EventHandler};
 
-use crate::configs::Configs;
+use crate::{configs::Configs, model::Model, view::View};
 
 #[derive(Clone, Debug)]
 pub enum CurrentInput {
@@ -39,32 +39,6 @@ impl DatabaseModel {
             username_input: Input::new("".to_string()),
             password_input: Input::new("".to_string()),
             current_input: CurrentInput::Name,
-        }
-    }
-
-    pub fn handle_event(&mut self, event: &Event) {
-        match self.current_input {
-            CurrentInput::Type => {
-                self.type_input.handle_event(event);
-            }
-            CurrentInput::Name => {
-                self.name_input.handle_event(event);
-            }
-            CurrentInput::Database => {
-                self.database_input.handle_event(event);
-            }
-            CurrentInput::Host => {
-                self.host_input.handle_event(event);
-            }
-            CurrentInput::Port => {
-                self.port_input.handle_event(event);
-            }
-            CurrentInput::Username => {
-                self.username_input.handle_event(event);
-            }
-            CurrentInput::Password => {
-                self.password_input.handle_event(event);
-            }
         }
     }
 
@@ -114,5 +88,35 @@ impl DatabaseModel {
         config.add_database_config(new_database_config)?;
 
         Ok(())
+    }
+}
+
+impl Model for DatabaseModel {
+    fn handle_event(&mut self, event: &Event) -> Result<Option<Box<dyn View>>> {
+        match self.current_input {
+            CurrentInput::Type => {
+                self.type_input.handle_event(event);
+            }
+            CurrentInput::Name => {
+                self.name_input.handle_event(event);
+            }
+            CurrentInput::Database => {
+                self.database_input.handle_event(event);
+            }
+            CurrentInput::Host => {
+                self.host_input.handle_event(event);
+            }
+            CurrentInput::Port => {
+                self.port_input.handle_event(event);
+            }
+            CurrentInput::Username => {
+                self.username_input.handle_event(event);
+            }
+            CurrentInput::Password => {
+                self.password_input.handle_event(event);
+            }
+        };
+
+        Ok(None)
     }
 }

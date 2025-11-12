@@ -1,6 +1,14 @@
 use anyhow::Result;
+use crossterm::event::{Event, KeyCode};
 
-use crate::{app::CurrentView, configs::Configs, database::model::DatabaseModel};
+use crate::{
+    configs::Configs,
+    database::{model::DatabaseModel, view::DatabaseView},
+    home::view::HomeView,
+    model::Model,
+    storage::{model::StorageModel, view::StorageView},
+    view::View,
+};
 
 #[derive(Clone, Debug)]
 pub struct HomeModel {
@@ -50,7 +58,7 @@ impl HomeModel {
         }
     }
 
-    pub fn get_target_view(&mut self) -> Result<CurrentView> {
+    pub fn get_target_view(&mut self) -> Result<Box<dyn View>> {
         let option = self
             .options
             .get(self.selected_option_index as usize)
@@ -58,11 +66,35 @@ impl HomeModel {
 
         if let Some(option) = option {
             if option == "Add DB Connection".to_string() {
-                return Ok(CurrentView::Database(DatabaseModel::new()));
+                return Ok(Box::new(DatabaseView::new(DatabaseModel::new())));
+            } else if option == "Add Storage Provider" {
+                return Ok(Box::new(StorageView::new(StorageModel::new())));
             }
         }
 
-        let view = CurrentView::Home(HomeModel::new()?);
+        let view = Box::new(HomeView::new(HomeModel::new()?));
         Ok(view)
+    }
+}
+
+impl Model for HomeModel {
+    fn handle_event(&mut self, event: &Event) -> Result<Option<Box<dyn View>>> {
+        if let Event::Key(key) = event {
+            match key.code {
+                KeyCode::Down => {
+                    self.select_next();
+                }
+                KeyCode::Up => {
+                    self.select_previous();
+                }
+                KeyCode::Enter => {
+                    let target_view = self.get_target_view()?;
+                    return Ok(Some(target_view));
+                }
+                _ => {}
+            }
+        }
+
+        Ok(Some(Box::new(HomeView::new(self.clone()))))
     }
 }

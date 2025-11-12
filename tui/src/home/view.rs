@@ -5,8 +5,9 @@ use ratatui::{
     widgets::{Block, Borders, HighlightSpacing, List, ListItem},
 };
 
-use crate::home::model::HomeModel;
+use crate::{home::model::HomeModel, model::Model, view::View};
 
+#[derive(Clone, Debug)]
 pub struct HomeView {
     home_model: HomeModel,
 }
@@ -15,8 +16,18 @@ impl HomeView {
     pub fn new(home_model: HomeModel) -> Self {
         HomeView { home_model }
     }
+}
 
-    pub fn render(&self, frame: &mut Frame) {
+impl View for HomeView {
+    fn clone_box(&self) -> Box<dyn View> {
+        Box::new(self.clone())
+    }
+
+    fn get_model(&self) -> Box<dyn Model> {
+        Box::new(self.home_model.clone())
+    }
+
+    fn render(&self, frame: &mut Frame) {
         let block = Block::new()
             .borders(Borders::all())
             .border_set(symbols::border::ROUNDED);

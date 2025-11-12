@@ -1,14 +1,16 @@
 use ratatui::{
     Frame,
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Style},
-    symbols,
-    widgets::{Block, Borders, Paragraph},
+    layout::{Constraint, Direction, Layout},
 };
-use tui_input::Input;
 
-use crate::database::model::{CurrentInput, DatabaseModel};
+use crate::{
+    database::model::{CurrentInput, DatabaseModel},
+    model::Model,
+    utils::render_input,
+    view::View,
+};
 
+#[derive(Clone, Debug)]
 pub struct DatabaseView {
     database_model: DatabaseModel,
 }
@@ -17,47 +19,18 @@ impl DatabaseView {
     pub fn new(database_model: DatabaseModel) -> Self {
         DatabaseView { database_model }
     }
+}
 
-    fn render_input(
-        &self,
-        frame: &mut Frame,
-        input: &Input,
-        title: &str,
-        is_active: bool,
-        area: Rect,
-        scroll: usize,
-        obfuscate: bool,
-    ) {
-        let block = Block::new()
-            .title(title)
-            .borders(Borders::ALL)
-            .border_set(symbols::border::ROUNDED)
-            .border_style(if is_active {
-                Style::default().fg(Color::LightBlue)
-            } else {
-                Style::default()
-            });
-
-        let value = input.value();
-        let display_value = if obfuscate {
-            "•".repeat(value.len())
-        } else {
-            value.to_string()
-        };
-
-        let paragraph = Paragraph::new(display_value)
-            .scroll((0, scroll as u16))
-            .block(block);
-
-        frame.render_widget(paragraph, area);
-
-        if is_active {
-            let x = input.visual_cursor().max(scroll) - scroll + 1;
-            frame.set_cursor_position((area.x + x as u16, area.y + 1));
-        }
+impl View for DatabaseView {
+    fn clone_box(&self) -> Box<dyn View> {
+        Box::new(self.clone())
     }
 
-    pub fn render(&self, frame: &mut Frame) {
+    fn get_model(&self) -> Box<dyn Model> {
+        Box::new(self.database_model.clone())
+    }
+
+    fn render(&self, frame: &mut Frame) {
         let inputs_layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
@@ -74,7 +47,7 @@ impl DatabaseView {
         let width = inputs_layout[0].width.max(3) - 3;
         let scroll = self.database_model.type_input.visual_scroll(width as usize);
 
-        self.render_input(
+        render_input(
             frame,
             &self.database_model.name_input,
             "Config Name",
@@ -84,7 +57,7 @@ impl DatabaseView {
             false,
         );
 
-        self.render_input(
+        render_input(
             frame,
             &self.database_model.type_input,
             "Database Type",
@@ -94,7 +67,7 @@ impl DatabaseView {
             false,
         );
 
-        self.render_input(
+        render_input(
             frame,
             &self.database_model.database_input,
             "Database Name",
@@ -104,7 +77,7 @@ impl DatabaseView {
             false,
         );
 
-        self.render_input(
+        render_input(
             frame,
             &self.database_model.host_input,
             "Host",
@@ -114,7 +87,7 @@ impl DatabaseView {
             false,
         );
 
-        self.render_input(
+        render_input(
             frame,
             &self.database_model.port_input,
             "Port",
@@ -124,7 +97,7 @@ impl DatabaseView {
             false,
         );
 
-        self.render_input(
+        render_input(
             frame,
             &self.database_model.username_input,
             "Username",
@@ -134,7 +107,7 @@ impl DatabaseView {
             false,
         );
 
-        self.render_input(
+        render_input(
             frame,
             &self.database_model.password_input,
             "Password",

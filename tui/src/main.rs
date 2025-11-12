@@ -2,17 +2,15 @@ use anyhow::{Result, anyhow};
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::{Terminal, prelude::Backend};
 
-use crate::{
-    app::{App, CurrentView},
-    database::model::CurrentInput,
-    home::model::HomeModel,
-};
+use crate::{app::App, model::Model};
 mod app;
 mod configs;
 mod database;
 mod home;
+mod model;
 mod storage;
-mod ui;
+mod utils;
+mod view;
 
 fn main() -> Result<()> {
     color_eyre::install().map_err(|e| anyhow!(e))?;
@@ -26,7 +24,8 @@ fn main() -> Result<()> {
 
 fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<bool> {
     loop {
-        terminal.draw(|f| ui::ui(f, app))?;
+        terminal.draw(|f| app.view.render(f))?;
+
         let event = event::read()?;
         if let Event::Key(key) = event {
             match key.code {
@@ -34,72 +33,9 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<bool
                 _ => {}
             }
 
-            match &app.current_view {
-                CurrentView::Home(home_model) => match key.code {
-                    KeyCode::Char('q') => {
-                        app.current_view = CurrentView::Exiting;
-                    }
-                    KeyCode::Down => {
-                        let mut home_model = home_model.clone();
-                        home_model.select_next();
-                        app.current_view = CurrentView::Home(home_model);
-                    }
-                    KeyCode::Up => {
-                        let mut home_model = home_model.clone();
-                        home_model.select_previous();
-                        app.current_view = CurrentView::Home(home_model);
-                    }
-                    KeyCode::Enter => {
-                        let mut home_model = home_model.clone();
-                        app.current_view = home_model.get_target_view()?;
-                    }
-                    _ => {}
-                },
-                CurrentView::Exiting => match key.code {
-                    KeyCode::Char('y') => {
-                        return Ok(true);
-                    }
-                    KeyCode::Char('n') | KeyCode::Char('q') => {
-                        return Ok(false);
-                    }
-                    _ => {}
-                },
-                CurrentView::Database(database_model) => match key.code {
-                    KeyCode::Down => {
-                        let mut database_model = database_model.clone();
-                        database_model.next_input();
-                        app.current_view = CurrentView::Database(database_model);
-                    }
-                    KeyCode::Tab => {
-                        let mut database_model = database_model.clone();
-                        database_model.next_input();
-                        app.current_view = CurrentView::Database(database_model);
-                    }
-                    KeyCode::Up => {
-                        let mut database_model = database_model.clone();
-                        database_model.previous_input();
-                        app.current_view = CurrentView::Database(database_model);
-                    }
-                    KeyCode::Enter => {
-                        let mut database_model = database_model.clone();
-
-                        match database_model.current_input {
-                            CurrentInput::Password => {
-                                database_model.save()?;
-                                app.current_view = CurrentView::Home(HomeModel::new()?);
-                            }
-                            _ => {
-                                database_model.next_input();
-                                app.current_view = CurrentView::Database(database_model);
-                            }
-                        }
-                    }
-                    _ => {
-                        let mut database_model = database_model.clone();
-                        database_model.handle_event(&event);
-                        app.current_view = CurrentView::Database(database_model);
-                    }
-                },
+            let mut model: Box<dyn Model> = app.view.get_model();
+            if let Some(new_view) = model.handle_event(&event)? {
+                app.view = new_view;
             }
         }
     }
