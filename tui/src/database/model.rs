@@ -1,9 +1,15 @@
 use anyhow::{Result, anyhow};
-use crossterm::event::Event;
+use crossterm::event::{Event, KeyCode};
 use dbkp_core::databases::{ConnectionType, DatabaseConfig};
 use tui_input::{Input, backend::crossterm::EventHandler};
 
-use crate::{configs::Configs, model::Model, view::View};
+use crate::{
+    configs::Configs,
+    database::view::DatabaseView,
+    home::{model::HomeModel, view::HomeView},
+    model::Model,
+    view::View,
+};
 
 #[derive(Clone, Debug)]
 pub enum CurrentInput {
@@ -117,6 +123,34 @@ impl Model for DatabaseModel {
             }
         };
 
-        Ok(None)
+        if let Event::Key(key) = event {
+            match key.code {
+                KeyCode::Down => {
+                    self.next_input();
+                }
+                KeyCode::Tab => {
+                    self.next_input();
+                }
+                KeyCode::Up => {
+                    self.previous_input();
+                }
+                KeyCode::Enter => {
+                    let mut database_model = self.clone();
+
+                    match database_model.current_input {
+                        CurrentInput::Password => {
+                            database_model.save()?;
+                            return Ok(Some(Box::new(HomeView::new(HomeModel::new()?))));
+                        }
+                        _ => {
+                            database_model.next_input();
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        Ok(Some(Box::new(DatabaseView::new(self.clone()))))
     }
 }

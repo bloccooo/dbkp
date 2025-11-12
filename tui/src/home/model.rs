@@ -20,7 +20,9 @@ impl HomeModel {
     pub fn new() -> Result<HomeModel> {
         let configs = Configs::load()?;
 
-        let options = if configs.get_database_configs().len() > 0 {
+        let options = if configs.get_database_configs().len() > 0
+            && configs.get_storage_configs().len() > 0
+        {
             vec![
                 "Backup DB".to_string(),
                 "Restore DB".to_string(),

@@ -151,7 +151,13 @@ impl Model for StorageModel {
                             self.next_input();
                         }
                         KeyCode::Enter => {
-                            self.next_input();
+                            if matches!(self.current_input, CurrentInput::LocalLocation) {
+                                self.save()?;
+                                let home_model = HomeModel::new()?;
+                                return Ok(Some(Box::new(HomeView::new(home_model))));
+                            } else {
+                                self.next_input();
+                            }
                         }
                         KeyCode::Up => {
                             self.previous_input();
