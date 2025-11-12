@@ -1,5 +1,5 @@
 use anyhow::{Result, anyhow};
-use crossterm::event::{self, Event, KeyCode};
+use crossterm::event::{self};
 use ratatui::{
     Terminal,
     layout::{Constraint, Direction, Layout, Rect},

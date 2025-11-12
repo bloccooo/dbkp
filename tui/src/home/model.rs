@@ -94,6 +94,10 @@ impl Model for HomeModel {
                 KeyCode::Up => {
                     self.select_previous();
                 }
+                KeyCode::Right => {
+                    let target_view = self.get_target_view()?;
+                    return Ok(Some(target_view));
+                }
                 KeyCode::Enter => {
                     let target_view = self.get_target_view()?;
                     return Ok(Some(target_view));

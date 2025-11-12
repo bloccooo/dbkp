@@ -29,6 +29,7 @@ impl View for HomeView {
 
     fn render(&self, frame: &mut Frame) {
         let block = Block::new()
+            .title("DBKP - DB Backup & Restore Tool")
             .borders(Borders::all())
             .border_set(symbols::border::ROUNDED);
 

@@ -149,6 +149,9 @@ impl Model for StorageModel {
                         KeyCode::Esc => {
                             return Ok(Some(Box::new(StorageView::new(StorageModel::new()))));
                         }
+                        KeyCode::Left => {
+                            return Ok(Some(Box::new(StorageView::new(StorageModel::new()))));
+                        }
                         KeyCode::Down => {
                             self.next_input();
                         }
@@ -176,7 +179,12 @@ impl Model for StorageModel {
                 Box::new(LocalStorageView::new(self.clone()))
             } else {
                 match key.code {
-                    KeyCode::Esc => return Ok(Some(Box::new(HomeView::new(HomeModel::new()?)))),
+                    KeyCode::Esc => {
+                        return Ok(Some(Box::new(HomeView::new(HomeModel::new()?))));
+                    }
+                    KeyCode::Left => {
+                        return Ok(Some(Box::new(HomeView::new(HomeModel::new()?))));
+                    }
                     KeyCode::Down => {
                         self.select_next();
                     }
@@ -184,6 +192,10 @@ impl Model for StorageModel {
                         self.select_previous();
                     }
                     KeyCode::Enter => {
+                        let new_view = self.get_target_view()?;
+                        return Ok(Some(new_view));
+                    }
+                    KeyCode::Right => {
                         let new_view = self.get_target_view()?;
                         return Ok(Some(new_view));
                     }
