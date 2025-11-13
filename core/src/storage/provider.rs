@@ -303,14 +303,14 @@ impl StorageProvider {
                             match operator.stat(&path).await {
                                 Ok(metadata) => {
                                     let file_size = metadata.content_length() as usize;
-                                    let chunk_size = if file_size > 512 { 512 } else { file_size };
+                                    let max_chunk_size = 5 * 1024 * 1024; // 5mb
+                                    let chunk_size = if file_size > max_chunk_size {
+                                        max_chunk_size
+                                    } else {
+                                        file_size
+                                    };
 
-                                    match operator
-                                        .reader_with(&path)
-                                        .chunk(chunk_size)
-                                        .concurrent(2)
-                                        .await
-                                    {
+                                    match operator.reader_with(&path).chunk(chunk_size).await {
                                         Ok(reader) => {
                                             match reader.into_stream(0u64..(file_size as u64)).await
                                             {
