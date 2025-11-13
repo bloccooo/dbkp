@@ -1,5 +1,6 @@
 use crate::{
     configs::Configs,
+    event::Event,
     home::{model::HomeModel, view::HomeView},
     model::Model,
     storage::view::{LocalStorageView, S3StorageView, StorageView},
@@ -7,8 +8,9 @@ use crate::{
 };
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
-use crossterm::event::{Event, KeyCode};
+use crossterm::event::{Event as CrosstermEvent, KeyCode};
 use dbkp_core::storage::provider::{LocalStorageConfig, S3StorageConfig, StorageConfig};
+use tokio::sync::mpsc;
 use tui_input::{Input, backend::crossterm::EventHandler};
 
 #[derive(Clone, Debug)]
@@ -25,6 +27,7 @@ pub enum CurrentInput {
 
 #[derive(Clone, Debug)]
 pub struct StorageModel {
+    pub event_sender: mpsc::UnboundedSender<Event>,
     pub exit: bool,
     pub current_input: CurrentInput,
     pub storage_type_options: Vec<String>,
@@ -41,8 +44,9 @@ pub struct StorageModel {
 }
 
 impl StorageModel {
-    pub fn new() -> Self {
+    pub fn new(event_sender: mpsc::UnboundedSender<Event>) -> Self {
         StorageModel {
+            event_sender,
             exit: false,
             current_input: CurrentInput::ConfigName,
             storage_type_options: vec!["S3".to_string(), "Local".to_string()],
@@ -234,7 +238,9 @@ impl Model for StorageModel {
 
     fn get_next_view(&mut self) -> Result<Option<Box<dyn View>>> {
         if self.exit {
-            return Ok(Some(Box::new(HomeView::new(HomeModel::new()?))));
+            return Ok(Some(Box::new(HomeView::new(HomeModel::new(
+                self.event_sender.clone(),
+            )?))));
         } else if let Some(config) = &self.current_storage_config {
             match config {
                 StorageConfig::Local(_) => {
@@ -249,7 +255,7 @@ impl Model for StorageModel {
         return Ok(Some(Box::new(StorageView::new(self.clone()))));
     }
 
-    async fn handle_event(&mut self, event: &Event) -> Result<()> {
+    async fn handle_event(&mut self, event: &CrosstermEvent) -> Result<()> {
         match self.current_input {
             CurrentInput::ConfigName => {
                 self.input_config_name.handle_event(event);
@@ -279,7 +285,7 @@ impl Model for StorageModel {
 
         self.update_current_config();
 
-        if let Event::Key(key) = event {
+        if let CrosstermEvent::Key(key) = event {
             if let Some(current_config) = &self.current_storage_config {
                 match current_config {
                     StorageConfig::Local(_) | StorageConfig::S3(_) => match key.code {

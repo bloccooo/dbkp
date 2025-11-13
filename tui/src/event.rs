@@ -5,17 +5,20 @@ use crossterm::event::Event as CrosstermEvent;
 use futures::{FutureExt, StreamExt};
 use tokio::sync::mpsc;
 
+use crate::view::View;
+
 const TICK_FPS: f64 = 10.0;
 
 #[derive(Clone, Debug)]
 pub enum Event {
     Tick,
     Crossterm(CrosstermEvent),
+    View(Box<dyn View>),
 }
 
 #[derive(Debug)]
 pub struct EventHandler {
-    sender: mpsc::UnboundedSender<Event>,
+    pub sender: mpsc::UnboundedSender<Event>,
     receiver: mpsc::UnboundedReceiver<Event>,
 }
 
@@ -32,6 +35,12 @@ impl EventHandler {
             .recv()
             .await
             .ok_or_eyre("Failed to receive event")
+    }
+}
+
+impl Drop for EventHandler {
+    fn drop(&mut self) {
+        let _ = self.receiver.close();
     }
 }
 

@@ -1,15 +1,19 @@
-use anyhow::{Error, Result, anyhow};
+use std::time::Duration;
+
+use anyhow::{Result, anyhow};
 use async_trait::async_trait;
-use crossterm::event::{Event, KeyCode};
+use crossterm::event::{Event as CrosstermEvent, KeyCode};
 use dbkp_core::{
     DbBkp,
     databases::DatabaseConnection,
     storage::provider::{StorageConfig, StorageProvider},
 };
+use tokio::sync::mpsc;
 
 use crate::{
     backup::view::BackupView,
     configs::Configs,
+    event::Event,
     home::{model::HomeModel, view::HomeView},
     model::Model,
     view::View,
@@ -23,17 +27,19 @@ pub enum SelectionMode {
 
 #[derive(Clone, Debug)]
 pub struct BackupModel {
+    pub exit: bool,
+    pub in_progress: bool,
     pub configs: Configs,
     pub selection_mode: SelectionMode,
     pub highlight_database_id: String,
     pub highlight_storage_id: String,
     pub selected_database_id: Option<String>,
     pub selected_storage_id: Option<String>,
-    pub next_view: Option<Box<dyn View>>,
+    pub event_sender: mpsc::UnboundedSender<Event>,
 }
 
 impl BackupModel {
-    pub fn new() -> Result<BackupModel> {
+    pub fn new(event_sender: mpsc::UnboundedSender<Event>) -> Result<BackupModel> {
         let configs = Configs::load()?;
         let database_configs = configs.get_database_configs();
         let storage_configs = configs.get_storage_configs();
@@ -49,13 +55,15 @@ impl BackupModel {
                 };
 
                 return Ok(BackupModel {
+                    exit: false,
+                    in_progress: false,
                     selection_mode: SelectionMode::DB,
                     configs,
                     highlight_database_id: database_config.id.clone(),
                     highlight_storage_id: storage_id,
                     selected_database_id: None,
                     selected_storage_id: None,
-                    next_view: None,
+                    event_sender,
                 });
             }
         }
@@ -167,15 +175,8 @@ impl BackupModel {
             }
         }
     }
-}
 
-#[async_trait]
-impl Model for BackupModel {
-    fn get_next_view(&mut self) -> Result<Option<Box<dyn View>>> {
-        Ok(self.next_view.clone())
-    }
-
-    fn run_hook(&mut self) -> Result<Option<Box<dyn View>>> {
+    async fn backup(&mut self) -> Result<()> {
         let database_configs = self.configs.get_database_configs();
         let storage_configs = self.configs.get_storage_configs();
 
@@ -193,68 +194,93 @@ impl Model for BackupModel {
         };
 
         if database_config.is_some() && storage_config.is_some() {
+            self.in_progress = true;
+            // self.event_sender.send(Event::Tick)?;
+
+            // // Timout to set progress to false in a separate thread
+            // let mut backup_model = self.clone();
+            let sender = self.event_sender.clone();
+            let mut backup_model = self.clone();
+            let home_view = HomeView::new(HomeModel::new(sender.clone())?);
             let database_config = database_config.unwrap().clone();
             let storage_config = storage_config.unwrap().clone();
 
-            self.selected_database_id = None;
-            self.selected_storage_id = None;
+            tokio::spawn(async move {
+                println!("Starting backup");
 
-            // Create temp tokio runtime and run it in a separate thread to keep the sync flow
-            let runtime = tokio::runtime::Runtime::new().unwrap();
-            let thread: std::thread::JoinHandle<std::result::Result<(), Error>> =
-                std::thread::spawn(move || {
-                    runtime.block_on(async move {
-                        let database_connection = match DatabaseConnection::new(database_config)
-                            .await
-                        {
-                            Ok(connection) => connection,
-                            Err(e) => {
-                                return Err(anyhow!("Failed to create database connection: {}", e));
-                            }
-                        };
+                let database_connection_result = tokio::time::timeout(
+                    Duration::from_secs(5),
+                    DatabaseConnection::new(database_config),
+                )
+                .await;
 
-                        let storage_provider = match StorageProvider::new(storage_config) {
-                            Ok(provider) => provider,
-                            Err(e) => {
-                                return Err(anyhow!("Failed to create storage provider: {}", e));
-                            }
-                        };
+                let database_connection = match database_connection_result {
+                    Ok(Ok(connection)) => connection,
+                    Ok(Err(e)) => {
+                        let _ = sender.send(Event::View(Box::new(home_view)));
+                        return;
+                    }
+                    Err(_) => {
+                        let _ = sender.send(Event::View(Box::new(home_view)));
+                        return;
+                    }
+                };
 
-                        let db_bkp = DbBkp::new(database_connection, storage_provider);
-                        match db_bkp.backup().await {
-                            Ok(_) => Ok(()),
-                            Err(e) => Err(anyhow!("Failed to backup: {}", e)),
-                        }
-                    })
-                });
+                //
 
-            self.selected_database_id = None;
-            self.selected_storage_id = None;
+                print!("Database connection created");
 
-            match thread.join() {
-                Ok(Ok(_)) => {
-                    return Ok(Some(Box::new(HomeView::new(HomeModel::new()?))));
-                }
-                Ok(Err(e)) => {
-                    self.selected_database_id = None;
-                    self.selected_storage_id = None;
-                    return Err(anyhow!("{}", e));
-                }
-                Err(e) => {
-                    self.selected_database_id = None;
-                    self.selected_storage_id = None;
-                    return Err(anyhow!("Thread panicked during backup operation: {:?}", e));
-                }
-            }
+                let storage_provider = match StorageProvider::new(storage_config) {
+                    Ok(provider) => provider,
+                    Err(e) => {
+                        print!("Failed to create storage provider: {}", e);
+                        let _ = sender.send(Event::View(Box::new(home_view)));
+                        return;
+                        // return Err(anyhow!("Failed to create storage provider: {}", e));
+                    }
+                };
+
+                let db_bkp = DbBkp::new(database_connection, storage_provider);
+
+                match db_bkp.backup().await {
+                    Ok(_) => {
+                        print!("Backup completed");
+                        let _ = sender.send(Event::View(Box::new(home_view))).unwrap();
+                    }
+                    Err(e) => {
+                        print!("Backup failed: {}", e);
+                        let _ = sender.send(Event::View(Box::new(home_view)));
+                    }
+                };
+            });
+        }
+
+        return Ok(());
+    }
+}
+
+#[async_trait]
+impl Model for BackupModel {
+    fn get_next_view(&mut self) -> Result<Option<Box<dyn View>>> {
+        if self.exit {
+            return Ok(Some(Box::new(HomeView::new(HomeModel::new(
+                self.event_sender.clone(),
+            )?))));
         }
 
         Ok(Some(Box::new(BackupView::new(self.clone()))))
     }
 
-    async fn handle_event(&mut self, event: &Event) -> Result<()> {
-        if let Event::Key(key) = event {
+    fn run_hook(&mut self) -> Result<Option<Box<dyn View>>> {
+        Ok(None)
+    }
+
+    async fn handle_event(&mut self, event: &CrosstermEvent) -> Result<()> {
+        if let CrosstermEvent::Key(key) = event {
             match key.code {
-                KeyCode::Esc => self.next_view = Some(Box::new(HomeView::new(HomeModel::new()?))),
+                KeyCode::Esc => {
+                    self.exit = true;
+                }
                 KeyCode::Down => {
                     self.select_next();
                 }
@@ -263,6 +289,7 @@ impl Model for BackupModel {
                 }
                 KeyCode::Enter => {
                     self.save_selection();
+                    self.backup().await?;
                 }
                 KeyCode::Left => {
                     self.selection_mode = match self.selection_mode {
@@ -280,7 +307,8 @@ impl Model for BackupModel {
             }
         }
 
-        self.next_view = Some(Box::new(BackupView::new(self.clone())));
+        self.event_sender.send(Event::Tick)?;
+
         Ok(())
     }
 }

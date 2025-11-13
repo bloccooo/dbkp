@@ -34,9 +34,7 @@ impl View for BackupView {
     }
 
     fn render(&self, frame: &mut Frame) {
-        if self.backup_model.selected_database_id.is_some()
-            && self.backup_model.selected_storage_id.is_some()
-        {
+        if self.backup_model.in_progress {
             let paragraph = Paragraph::new("Loading...").wrap(Wrap { trim: true });
             frame.render_widget(paragraph, frame.area());
             return;

@@ -1,12 +1,14 @@
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
-use crossterm::event::{Event, KeyCode};
+use crossterm::event::{Event as CrosstermEvent, KeyCode};
 use dbkp_core::databases::{ConnectionType, DatabaseConfig};
+use tokio::sync::mpsc;
 use tui_input::{Input, backend::crossterm::EventHandler};
 
 use crate::{
     configs::Configs,
     database::view::DatabaseView,
+    event::Event,
     home::{model::HomeModel, view::HomeView},
     model::Model,
     view::View,
@@ -25,6 +27,7 @@ pub enum CurrentInput {
 
 #[derive(Clone, Debug)]
 pub struct DatabaseModel {
+    pub event_sender: mpsc::UnboundedSender<Event>,
     pub exit: bool,
     pub current_input: CurrentInput,
     pub type_input: Input,
@@ -37,8 +40,9 @@ pub struct DatabaseModel {
 }
 
 impl DatabaseModel {
-    pub fn new() -> DatabaseModel {
-        DatabaseModel {
+    pub fn new(event_sender: mpsc::UnboundedSender<Event>) -> Result<DatabaseModel> {
+        let database_model = DatabaseModel {
+            event_sender,
             exit: false,
             type_input: Input::new("postgresql".to_string()),
             name_input: Input::new("".to_string()),
@@ -48,7 +52,9 @@ impl DatabaseModel {
             username_input: Input::new("".to_string()),
             password_input: Input::new("".to_string()),
             current_input: CurrentInput::Name,
-        }
+        };
+
+        Ok(database_model)
     }
 
     pub fn next_input(&mut self) {
@@ -150,13 +156,15 @@ impl Model for DatabaseModel {
 
     fn get_next_view(&mut self) -> Result<Option<Box<dyn View>>> {
         if self.exit {
-            return Ok(Some(Box::new(HomeView::new(HomeModel::new()?))));
+            return Ok(Some(Box::new(HomeView::new(HomeModel::new(
+                self.event_sender.clone(),
+            )?))));
         }
 
         return Ok(Some(Box::new(DatabaseView::new(self.clone()))));
     }
 
-    async fn handle_event(&mut self, event: &Event) -> Result<()> {
+    async fn handle_event(&mut self, event: &CrosstermEvent) -> Result<()> {
         match self.current_input {
             CurrentInput::Type => {
                 self.type_input.handle_event(event);
@@ -181,7 +189,7 @@ impl Model for DatabaseModel {
             }
         };
 
-        if let Event::Key(key) = event {
+        if let CrosstermEvent::Key(key) = event {
             match key.code {
                 KeyCode::Esc | KeyCode::Left => {
                     self.exit = true;

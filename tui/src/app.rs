@@ -18,16 +18,17 @@ pub struct App {
 
 impl App {
     pub fn new() -> Result<App> {
+        let events = EventHandler::new();
         let app = App {
             running: true,
-            view: Box::new(HomeView::new(HomeModel::new()?)),
-            events: EventHandler::new(),
+            view: Box::new(HomeView::new(HomeModel::new(events.sender.clone())?)),
+            events,
         };
 
         Ok(app)
     }
 
-    pub async fn render_frame<B: Backend>(
+    pub fn render_frame<B: Backend>(
         &mut self,
         mut model: Box<dyn Model>,
         error: Option<Error>,
@@ -67,18 +68,18 @@ impl App {
     pub async fn run<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> color_eyre::Result<()> {
         while self.running {
             let mut model: Box<dyn Model> = self.view.get_model();
-
             match self.events.next().await? {
                 Event::Tick => {
-                    // self.running = self.render_frame(model, None, terminal).await?;
+                    self.running = self.render_frame(model, None, terminal)?;
                 }
                 Event::Crossterm(event) => {
-                    let error = match model.handle_event(&event).await {
-                        Ok(_) => None,
-                        Err(e) => Some(e),
-                    };
-
-                    self.running = self.render_frame(model, error, terminal).await?;
+                    let _ = model.handle_event(&event).await;
+                    self.running = self.render_frame(model, None, terminal)?;
+                }
+                Event::View(view) => {
+                    let model = view.get_model();
+                    self.view = view;
+                    self.running = self.render_frame(model, None, terminal)?;
                 }
             };
         }

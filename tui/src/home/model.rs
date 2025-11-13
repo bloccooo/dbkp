@@ -1,11 +1,13 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use crossterm::event::{Event, KeyCode};
+use crossterm::event::{Event as CrosstermEvent, KeyCode};
+use tokio::sync::mpsc;
 
 use crate::{
     backup::{model::BackupModel, view::BackupView},
     configs::Configs,
     database::{model::DatabaseModel, view::DatabaseView},
+    event::Event,
     home::view::HomeView,
     model::Model,
     storage::{model::StorageModel, view::StorageView},
@@ -18,10 +20,11 @@ pub struct HomeModel {
     pub options: Vec<String>,
     pub highlighted_option_index: i8,
     pub selected_options_index: Option<i8>,
+    pub event_sender: mpsc::UnboundedSender<Event>,
 }
 
 impl HomeModel {
-    pub fn new() -> Result<HomeModel> {
+    pub fn new(event_sender: mpsc::UnboundedSender<Event>) -> Result<HomeModel> {
         let configs = Configs::load()?;
 
         let options = if configs.get_database_configs().len() > 0
@@ -45,6 +48,7 @@ impl HomeModel {
             options,
             selected_options_index: None,
             highlighted_option_index: 0,
+            event_sender,
         };
 
         Ok(home_model)
@@ -84,11 +88,15 @@ impl Model for HomeModel {
 
                 if let Some(option) = option {
                     if option == "Add DB Connection".to_string() {
-                        return Ok(Some(Box::new(DatabaseView::new(DatabaseModel::new()))));
+                        return Ok(Some(Box::new(DatabaseView::new(DatabaseModel::new(
+                            self.event_sender.clone(),
+                        )?))));
                     } else if option == "Add Storage Provider" {
-                        return Ok(Some(Box::new(StorageView::new(StorageModel::new()))));
+                        return Ok(Some(Box::new(StorageView::new(StorageModel::new(
+                            self.event_sender.clone(),
+                        )))));
                     } else if option == "Backup DB" {
-                        let view = BackupView::new(BackupModel::new()?);
+                        let view = BackupView::new(BackupModel::new(self.event_sender.clone())?);
                         return Ok(Some(Box::new(view)));
                     }
                 }
@@ -99,8 +107,8 @@ impl Model for HomeModel {
         Ok(Some(Box::new(HomeView::new(self.clone()))))
     }
 
-    async fn handle_event(&mut self, event: &Event) -> Result<()> {
-        if let Event::Key(key) = event {
+    async fn handle_event(&mut self, event: &CrosstermEvent) -> Result<()> {
+        if let CrosstermEvent::Key(key) = event {
             match key.code {
                 KeyCode::Esc => {
                     self.exit = true;
@@ -124,6 +132,8 @@ impl Model for HomeModel {
                 _ => {}
             }
         }
+
+        self.event_sender.send(Event::Tick)?;
 
         Ok(())
     }
