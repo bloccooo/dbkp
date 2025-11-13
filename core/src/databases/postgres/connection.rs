@@ -112,7 +112,6 @@ impl DatabaseConnectionTrait for PostgreSqlConnection {
 
         cmd.arg("--format=plain")
             .arg("--encoding=UTF8")
-            .arg("--schema=*")
             .arg("--clean")
             .arg("--if-exists")
             .arg("--no-owner")
