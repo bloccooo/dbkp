@@ -1,11 +1,14 @@
 use ratatui::{
-    Frame,
-    style::{Color, Style},
-    symbols,
-    widgets::{Block, Borders, HighlightSpacing, List, ListItem},
+    Frame, symbols,
+    widgets::{Block, Borders},
 };
 
-use crate::{home::model::HomeModel, model::Model, view::View};
+use crate::{
+    home::model::HomeModel,
+    model::Model,
+    utils::{ListItem, create_list},
+    view::View,
+};
 
 #[derive(Clone, Debug)]
 pub struct HomeView {
@@ -38,26 +41,23 @@ impl View for HomeView {
             .options
             .iter()
             .map(|it| {
-                if (self.home_model.highlighted_option_index as usize)
+                let highlighted = (self.home_model.highlighted_option_index as usize)
                     == self
                         .home_model
                         .options
                         .iter()
                         .position(|x| x == it)
-                        .unwrap()
-                {
-                    ListItem::from(it.as_str()).style(Style::default().bg(Color::LightBlue))
-                } else {
-                    ListItem::from(it.as_str())
+                        .unwrap();
+
+                ListItem {
+                    label: it.clone(),
+                    highlighted,
+                    selected: false,
                 }
             })
             .collect();
 
-        let list = List::new(items)
-            .block(block)
-            .highlight_symbol(">")
-            .highlight_spacing(HighlightSpacing::Always);
-
+        let list = create_list(items).block(block);
         frame.render_widget(list, frame.area());
     }
 }

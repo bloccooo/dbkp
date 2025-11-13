@@ -2,14 +2,14 @@ use dbkp_core::storage::provider::StorageConfig;
 use ratatui::{
     Frame,
     layout::{Constraint, Flex, Layout},
-    style::{Color, Style},
     symbols,
-    widgets::{Block, Borders, HighlightSpacing, List, ListItem, Paragraph, Wrap},
+    widgets::{Block, Borders, Paragraph, Wrap},
 };
 
 use crate::{
     backup::model::{BackupModel, SelectionMode},
     model::Model,
+    utils::{ListItem, create_list},
     view::View,
 };
 
@@ -51,39 +51,27 @@ impl View for BackupView {
         let database_items: Vec<ListItem> = databse_configs
             .iter()
             .map(|config| {
-                let is_highlighted = self.backup_model.highlight_database_id == config.id;
-                let is_active = matches!(self.backup_model.selection_mode, SelectionMode::DB);
-                let is_selected = if let Some(selected_id) = &self.backup_model.selected_database_id
-                {
+                let active = matches!(self.backup_model.selection_mode, SelectionMode::DB);
+                let highlighted = self.backup_model.highlight_database_id == config.id && active;
+                let selected = if let Some(selected_id) = &self.backup_model.selected_database_id {
                     config.id == *selected_id
                 } else {
                     false
                 };
 
-                if is_selected && is_highlighted && is_active {
-                    ListItem::from(format!("{} {}", "✓", config.name))
-                        .style(Style::default().bg(Color::LightBlue))
-                } else if is_selected {
-                    ListItem::from(format!("{} {}", "✓", config.name))
-                        .style(Style::default().bg(Color::Gray))
-                } else if is_highlighted && is_active {
-                    ListItem::from(config.name.to_string())
-                        .style(Style::default().bg(Color::LightBlue))
-                } else {
-                    ListItem::from(config.name.to_string())
+                ListItem {
+                    label: config.name.clone(),
+                    highlighted,
+                    selected,
                 }
             })
             .collect();
 
         let block = Block::new()
+            .title("Select Database")
             .borders(Borders::all())
             .border_set(symbols::border::ROUNDED);
-
-        let list = List::new(database_items)
-            .block(block.clone())
-            .highlight_symbol(">")
-            .highlight_spacing(HighlightSpacing::Always);
-
+        let list = create_list(database_items).block(block);
         frame.render_widget(list, column1);
 
         let storage_items: Vec<ListItem> = storage_configs
@@ -99,34 +87,27 @@ impl View for BackupView {
                     StorageConfig::S3(config) => config.name.clone(),
                 };
 
-                let is_highlighted = self.backup_model.highlight_storage_id == current_id;
-                let is_active = matches!(self.backup_model.selection_mode, SelectionMode::Storage);
-                let is_selected = if let Some(selected_id) = &self.backup_model.selected_storage_id
-                {
+                let active = matches!(self.backup_model.selection_mode, SelectionMode::Storage);
+                let highlighted = self.backup_model.highlight_storage_id == current_id && active;
+                let selected = if let Some(selected_id) = &self.backup_model.selected_storage_id {
                     current_id == *selected_id
                 } else {
                     false
                 };
 
-                if is_selected && is_highlighted && is_active {
-                    ListItem::from(format!("{} {}", "✓", current_name))
-                        .style(Style::default().bg(Color::LightBlue))
-                } else if is_selected {
-                    ListItem::from(format!("{} {}", "✓", current_name))
-                        .style(Style::default().bg(Color::Gray))
-                } else if is_highlighted && is_active {
-                    ListItem::from(current_name).style(Style::default().bg(Color::LightBlue))
-                } else {
-                    ListItem::from(current_name)
+                ListItem {
+                    label: current_name,
+                    highlighted,
+                    selected,
                 }
             })
             .collect();
 
-        let storage_list = List::new(storage_items)
-            .block(block)
-            .highlight_symbol(">")
-            .highlight_spacing(HighlightSpacing::Always);
-
-        frame.render_widget(storage_list, column2);
+        let block = Block::new()
+            .title("Select Storage")
+            .borders(Borders::all())
+            .border_set(symbols::border::ROUNDED);
+        let list = create_list(storage_items).block(block);
+        frame.render_widget(list, column2);
     }
 }

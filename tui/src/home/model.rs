@@ -1,6 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use crossterm::event::{Event as CrosstermEvent, KeyCode};
+use std::fs::File;
 use tokio::sync::mpsc;
 
 use crate::{
@@ -35,6 +36,7 @@ impl HomeModel {
                 "Restore DB".to_string(),
                 "Add DB Connection".to_string(),
                 "Add Storage Provider".to_string(),
+                "Open Configs Folder".to_string(),
             ]
         } else {
             vec![
@@ -98,6 +100,11 @@ impl Model for HomeModel {
                     } else if option == "Backup DB" {
                         let view = BackupView::new(BackupModel::new(self.event_sender.clone())?);
                         return Ok(Some(Box::new(view)));
+                    } else if option == "Open Configs Folder" {
+                        let _ = std::process::Command::new("open")
+                            .arg(Configs::load()?.config_path.parent().unwrap())
+                            .spawn();
+                        return Ok(None);
                     }
                 }
             }

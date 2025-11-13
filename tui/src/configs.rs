@@ -5,7 +5,7 @@ use std::{borrow::Borrow, fs, path::PathBuf};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Configs {
-    config_path: PathBuf,
+    pub config_path: PathBuf,
     database_configs: Vec<DatabaseConfig>,
     storage_configs: Vec<StorageConfig>,
 }

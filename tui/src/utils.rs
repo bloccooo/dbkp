@@ -1,10 +1,9 @@
-use anyhow::Error;
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style},
     symbols,
-    widgets::{Block, Borders, Paragraph, Wrap},
+    widgets::{Block, Borders, List, ListItem as RatatuiListItem, Paragraph},
 };
 use tui_input::Input;
 
@@ -66,4 +65,32 @@ pub fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
             Constraint::Percentage((100 - percent_x) / 2),
         ])
         .split(popup_layout[1])[1] // Return the middle chunk
+}
+
+pub struct ListItem {
+    pub label: String,
+    pub highlighted: bool,
+    pub selected: bool,
+}
+
+pub fn create_list(items: Vec<ListItem>) -> List<'static> {
+    let items: Vec<RatatuiListItem> = items
+        .iter()
+        .map(|item| {
+            if item.highlighted && item.selected {
+                RatatuiListItem::from(format!("{} {}", "✓", item.label))
+                    .style(Style::default().bg(Color::LightBlue))
+            } else if item.selected {
+                RatatuiListItem::from(format!("{} {}", "✓", item.label))
+                    .style(Style::default().bg(Color::Gray))
+            } else if item.highlighted {
+                RatatuiListItem::from(item.label.clone())
+                    .style(Style::default().bg(Color::LightBlue))
+            } else {
+                RatatuiListItem::from(item.label.clone())
+            }
+        })
+        .collect();
+
+    List::new(items)
 }

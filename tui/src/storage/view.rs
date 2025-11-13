@@ -1,14 +1,13 @@
 use ratatui::{
     layout::{Constraint, Direction, Layout},
-    style::{Color, Style},
     symbols,
-    widgets::{Block, Borders, HighlightSpacing, List, ListItem},
+    widgets::{Block, Borders},
 };
 
 use crate::{
     model::Model,
     storage::model::{CurrentInput, StorageModel},
-    utils::render_input,
+    utils::{ListItem, create_list, render_input},
     view::View,
 };
 
@@ -42,26 +41,23 @@ impl View for StorageView {
             .storage_type_options
             .iter()
             .map(|it| {
-                if (self.storage_model.highlighted_option_index as usize)
+                let highlighted = (self.storage_model.highlighted_option_index as usize)
                     == self
                         .storage_model
                         .storage_type_options
                         .iter()
                         .position(|x| x == it)
-                        .unwrap()
-                {
-                    ListItem::from(it.as_str()).style(Style::default().bg(Color::LightBlue))
-                } else {
-                    ListItem::from(it.as_str())
+                        .unwrap();
+
+                ListItem {
+                    label: it.clone(),
+                    highlighted,
+                    selected: false,
                 }
             })
             .collect();
 
-        let list = List::new(items)
-            .block(block)
-            .highlight_symbol(">")
-            .highlight_spacing(HighlightSpacing::Always);
-
+        let list = create_list(items).block(block);
         frame.render_widget(list, frame.area());
     }
 }
