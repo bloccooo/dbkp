@@ -25,6 +25,7 @@ pub enum CurrentInput {
 
 #[derive(Clone, Debug)]
 pub struct DatabaseModel {
+    pub exit: bool,
     pub current_input: CurrentInput,
     pub type_input: Input,
     pub name_input: Input,
@@ -33,12 +34,12 @@ pub struct DatabaseModel {
     pub port_input: Input,
     pub username_input: Input,
     pub password_input: Input,
-    pub next_view: Option<Box<dyn View>>,
 }
 
 impl DatabaseModel {
     pub fn new() -> DatabaseModel {
         DatabaseModel {
+            exit: false,
             type_input: Input::new("postgresql".to_string()),
             name_input: Input::new("".to_string()),
             database_input: Input::new("".to_string()),
@@ -47,7 +48,6 @@ impl DatabaseModel {
             username_input: Input::new("".to_string()),
             password_input: Input::new("".to_string()),
             current_input: CurrentInput::Name,
-            next_view: None,
         }
     }
 
@@ -149,7 +149,11 @@ impl Model for DatabaseModel {
     }
 
     fn get_next_view(&mut self) -> Result<Option<Box<dyn View>>> {
-        return Ok(self.next_view.clone());
+        if self.exit {
+            return Ok(Some(Box::new(HomeView::new(HomeModel::new()?))));
+        }
+
+        return Ok(Some(Box::new(DatabaseView::new(self.clone()))));
     }
 
     async fn handle_event(&mut self, event: &Event) -> Result<()> {
@@ -179,8 +183,9 @@ impl Model for DatabaseModel {
 
         if let Event::Key(key) = event {
             match key.code {
-                KeyCode::Esc => self.next_view = Some(Box::new(HomeView::new(HomeModel::new()?))),
-                KeyCode::Left => self.next_view = Some(Box::new(HomeView::new(HomeModel::new()?))),
+                KeyCode::Esc | KeyCode::Left => {
+                    self.exit = true;
+                }
                 KeyCode::Down => {
                     self.next_input();
                 }
@@ -193,8 +198,7 @@ impl Model for DatabaseModel {
                 KeyCode::Enter => {
                     if self.input_filled() {
                         self.save()?;
-                        let home_model = HomeModel::new()?;
-                        self.next_view = Some(Box::new(HomeView::new(home_model)));
+                        self.exit = true;
                     } else {
                         self.next_input();
                     }
@@ -202,8 +206,6 @@ impl Model for DatabaseModel {
                 _ => {}
             }
         }
-
-        self.next_view = Some(Box::new(DatabaseView::new(self.clone())));
 
         Ok(())
     }
