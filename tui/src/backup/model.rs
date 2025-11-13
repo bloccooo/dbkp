@@ -13,6 +13,7 @@ use tokio::sync::mpsc;
 use crate::{
     backup::view::BackupView,
     configs::Configs,
+    error::{model::ErrorModel, view::ErrorView},
     event::Event,
     home::{model::HomeModel, view::HomeView},
     model::Model,
@@ -176,7 +177,7 @@ impl BackupModel {
         }
     }
 
-    async fn backup(&mut self) -> Result<()> {
+    fn backup(&mut self) -> Result<()> {
         let database_configs = self.configs.get_database_configs();
         let storage_configs = self.configs.get_storage_configs();
 
@@ -195,19 +196,13 @@ impl BackupModel {
 
         if database_config.is_some() && storage_config.is_some() {
             self.in_progress = true;
-            // self.event_sender.send(Event::Tick)?;
-
-            // // Timout to set progress to false in a separate thread
-            // let mut backup_model = self.clone();
             let sender = self.event_sender.clone();
-            let mut backup_model = self.clone();
+
             let home_view = HomeView::new(HomeModel::new(sender.clone())?);
             let database_config = database_config.unwrap().clone();
             let storage_config = storage_config.unwrap().clone();
 
             tokio::spawn(async move {
-                println!("Starting backup");
-
                 let database_connection_result = tokio::time::timeout(
                     Duration::from_secs(5),
                     DatabaseConnection::new(database_config),
@@ -217,26 +212,35 @@ impl BackupModel {
                 let database_connection = match database_connection_result {
                     Ok(Ok(connection)) => connection,
                     Ok(Err(e)) => {
-                        let _ = sender.send(Event::View(Box::new(home_view)));
+                        let error_view = ErrorView::new(ErrorModel::new(
+                            sender.clone(),
+                            Some("Database Connection Error".to_string()),
+                            e.to_string(),
+                        ));
+                        let _ = sender.send(Event::View(Box::new(error_view)));
                         return;
                     }
                     Err(_) => {
-                        let _ = sender.send(Event::View(Box::new(home_view)));
+                        let error_view = ErrorView::new(ErrorModel::new(
+                            sender.clone(),
+                            Some("Database Connection Timeout".to_string()),
+                            "Timeout".to_string(),
+                        ));
+                        let _ = sender.send(Event::View(Box::new(error_view)));
                         return;
                     }
                 };
 
-                //
-
-                print!("Database connection created");
-
                 let storage_provider = match StorageProvider::new(storage_config) {
                     Ok(provider) => provider,
                     Err(e) => {
-                        print!("Failed to create storage provider: {}", e);
-                        let _ = sender.send(Event::View(Box::new(home_view)));
+                        let error_view = ErrorView::new(ErrorModel::new(
+                            sender.clone(),
+                            Some("Storage Provider Error".to_string()),
+                            e.to_string(),
+                        ));
+                        let _ = sender.send(Event::View(Box::new(error_view)));
                         return;
-                        // return Err(anyhow!("Failed to create storage provider: {}", e));
                     }
                 };
 
@@ -244,12 +248,15 @@ impl BackupModel {
 
                 match db_bkp.backup().await {
                     Ok(_) => {
-                        print!("Backup completed");
                         let _ = sender.send(Event::View(Box::new(home_view))).unwrap();
                     }
                     Err(e) => {
-                        print!("Backup failed: {}", e);
-                        let _ = sender.send(Event::View(Box::new(home_view)));
+                        let error_view = ErrorView::new(ErrorModel::new(
+                            sender.clone(),
+                            Some("Backup Failed".to_string()),
+                            e.to_string(),
+                        ));
+                        let _ = sender.send(Event::View(Box::new(error_view)));
                     }
                 };
             });
@@ -289,7 +296,7 @@ impl Model for BackupModel {
                 }
                 KeyCode::Enter => {
                     self.save_selection();
-                    self.backup().await?;
+                    self.backup()?;
                 }
                 KeyCode::Left => {
                     self.selection_mode = match self.selection_mode {

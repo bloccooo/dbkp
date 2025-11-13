@@ -1,11 +1,11 @@
-use anyhow::{Error, Result};
+use anyhow::Result;
 use ratatui::{Terminal, prelude::Backend};
 
 use crate::{
+    error::{model::ErrorModel, view::ErrorView},
     event::{Event, EventHandler},
     home::{model::HomeModel, view::HomeView},
     model::Model,
-    utils::render_error,
     view::View,
 };
 
@@ -31,7 +31,6 @@ impl App {
     pub fn render_frame<B: Backend>(
         &mut self,
         mut model: Box<dyn Model>,
-        error: Option<Error>,
         terminal: &mut Terminal<B>,
     ) -> color_eyre::Result<bool> {
         let mut result = false;
@@ -54,11 +53,12 @@ impl App {
             };
 
             if let Some(error) = view_error {
-                render_error(error, f);
-            }
-
-            if let Some(error) = error {
-                render_error(error, f);
+                let error_view = ErrorView::new(ErrorModel::new(
+                    self.events.sender.clone(),
+                    Some("View Error".to_string()),
+                    error.to_string(),
+                ));
+                let _ = self.events.sender.send(Event::View(Box::new(error_view)));
             }
         })?;
 
@@ -70,16 +70,29 @@ impl App {
             let mut model: Box<dyn Model> = self.view.get_model();
             match self.events.next().await? {
                 Event::Tick => {
-                    self.running = self.render_frame(model, None, terminal)?;
+                    // self.running = self.render_frame(model, terminal)?;
                 }
                 Event::Crossterm(event) => {
-                    let _ = model.handle_event(&event).await;
-                    self.running = self.render_frame(model, None, terminal)?;
+                    let error = match model.handle_event(&event).await {
+                        Ok(_) => None,
+                        Err(e) => Some(e),
+                    };
+
+                    if let Some(error) = error {
+                        let error_view = ErrorView::new(ErrorModel::new(
+                            self.events.sender.clone(),
+                            Some("Event Error".to_string()),
+                            error.to_string(),
+                        ));
+                        let _ = self.events.sender.send(Event::View(Box::new(error_view)));
+                    } else {
+                        self.running = self.render_frame(model, terminal)?;
+                    }
                 }
                 Event::View(view) => {
                     let model = view.get_model();
                     self.view = view;
-                    self.running = self.render_frame(model, None, terminal)?;
+                    self.running = self.render_frame(model, terminal)?;
                 }
             };
         }

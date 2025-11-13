@@ -67,17 +67,3 @@ pub fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         ])
         .split(popup_layout[1])[1] // Return the middle chunk
 }
-
-pub fn render_error(error: Error, frame: &mut Frame) {
-    let popup_block = Block::default()
-        .title("Error")
-        .borders(Borders::ALL)
-        .style(Style::default().bg(Color::Red));
-
-    let paragraph = Paragraph::new(error.to_string())
-        .block(popup_block)
-        .wrap(Wrap { trim: true });
-
-    let area = centered_rect(60, 25, frame.area());
-    frame.render_widget(paragraph, area);
-}
