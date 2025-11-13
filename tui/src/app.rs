@@ -1,10 +1,11 @@
-use anyhow::Result;
+use anyhow::{Error, Result};
 use ratatui::{Terminal, prelude::Backend};
 
 use crate::{
     event::{Event, EventHandler},
     home::{model::HomeModel, view::HomeView},
     model::Model,
+    utils::render_error,
     view::View,
 };
 
@@ -29,22 +30,35 @@ impl App {
     pub async fn render_frame<B: Backend>(
         &mut self,
         mut model: Box<dyn Model>,
+        error: Option<Error>,
         terminal: &mut Terminal<B>,
     ) -> color_eyre::Result<bool> {
         let mut result = false;
 
         terminal.draw(|f| {
-            match model.get_next_view() {
+            let view_error = match model.get_next_view() {
                 Ok(some_view) => match some_view {
                     Some(view) => {
                         self.view = view;
                         self.view.render(f);
                         result = true;
+                        None
                     }
-                    None => result = false,
+                    None => {
+                        result = false;
+                        None
+                    }
                 },
-                Err(_) => result = false,
+                Err(e) => Some(e),
             };
+
+            if let Some(error) = view_error {
+                render_error(error, f);
+            }
+
+            if let Some(error) = error {
+                render_error(error, f);
+            }
         })?;
 
         Ok(result)
@@ -56,11 +70,15 @@ impl App {
 
             match self.events.next().await? {
                 Event::Tick => {
-                    self.running = self.render_frame(model, terminal).await?;
+                    // self.running = self.render_frame(model, None, terminal).await?;
                 }
                 Event::Crossterm(event) => {
-                    let _ = model.handle_event(&event).await;
-                    self.running = self.render_frame(model, terminal).await?;
+                    let error = match model.handle_event(&event).await {
+                        Ok(_) => None,
+                        Err(e) => Some(e),
+                    };
+
+                    self.running = self.render_frame(model, error, terminal).await?;
                 }
             };
         }
