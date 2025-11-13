@@ -278,10 +278,6 @@ impl Model for BackupModel {
         Ok(Some(Box::new(BackupView::new(self.clone()))))
     }
 
-    fn run_hook(&mut self) -> Result<Option<Box<dyn View>>> {
-        Ok(None)
-    }
-
     async fn handle_event(&mut self, event: &CrosstermEvent) -> Result<()> {
         if let CrosstermEvent::Key(key) = event {
             match key.code {

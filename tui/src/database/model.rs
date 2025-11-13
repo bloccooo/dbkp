@@ -150,10 +150,6 @@ impl DatabaseModel {
 
 #[async_trait]
 impl Model for DatabaseModel {
-    fn run_hook(&mut self) -> Result<Option<Box<dyn View>>> {
-        Ok(None)
-    }
-
     fn get_next_view(&mut self) -> Result<Option<Box<dyn View>>> {
         if self.exit {
             return Ok(Some(Box::new(HomeView::new(HomeModel::new(

@@ -6,7 +6,6 @@ use crate::view::View;
 
 #[async_trait]
 pub trait Model: Send + Sync + Unpin {
-    fn run_hook(&mut self) -> Result<Option<Box<dyn View>>>;
     async fn handle_event(&mut self, event: &Event) -> Result<()>;
     fn get_next_view(&mut self) -> Result<Option<Box<dyn View>>>;
 }

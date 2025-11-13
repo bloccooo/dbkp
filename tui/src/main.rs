@@ -9,6 +9,7 @@ mod error;
 mod event;
 mod home;
 mod model;
+mod restore;
 mod storage;
 mod utils;
 mod view;

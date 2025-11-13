@@ -1,7 +1,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use crossterm::event::{Event as CrosstermEvent, KeyCode};
-use std::fs::File;
 use tokio::sync::mpsc;
 
 use crate::{
@@ -11,6 +10,7 @@ use crate::{
     event::Event,
     home::view::HomeView,
     model::Model,
+    restore::{model::RestoreModel, view::RestoreView},
     storage::{model::StorageModel, view::StorageView},
     view::View,
 };
@@ -75,10 +75,6 @@ impl HomeModel {
 
 #[async_trait]
 impl Model for HomeModel {
-    fn run_hook(&mut self) -> Result<Option<Box<dyn View>>> {
-        Ok(None)
-    }
-
     fn get_next_view(&mut self) -> Result<Option<Box<dyn View>>> {
         if self.exit {
             return Ok(None);
@@ -99,6 +95,9 @@ impl Model for HomeModel {
                         )))));
                     } else if option == "Backup DB" {
                         let view = BackupView::new(BackupModel::new(self.event_sender.clone())?);
+                        return Ok(Some(Box::new(view)));
+                    } else if option == "Restore DB" {
+                        let view = RestoreView::new(RestoreModel::new(self.event_sender.clone())?);
                         return Ok(Some(Box::new(view)));
                     } else if option == "Open Configs Folder" {
                         let _ = std::process::Command::new("open")

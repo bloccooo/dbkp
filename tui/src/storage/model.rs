@@ -232,10 +232,6 @@ impl StorageModel {
 
 #[async_trait]
 impl Model for StorageModel {
-    fn run_hook(&mut self) -> Result<Option<Box<dyn View>>> {
-        Ok(None)
-    }
-
     fn get_next_view(&mut self) -> Result<Option<Box<dyn View>>> {
         if self.exit {
             return Ok(Some(Box::new(HomeView::new(HomeModel::new(
@@ -336,19 +332,36 @@ impl Model for StorageModel {
                                         id: cuid2::create_id(),
                                         location: "".into(),
                                         name: "".into(),
-                                    }))
+                                    }));
                             } else {
+                                let default_endpoint: String =
+                                    "https://s3.pub1.infomaniak.cloud".into();
+                                let default_access_key: String = "".into();
+                                let default_secret_key: String = "".into();
+                                let default_bucket: String = "".into();
+                                let default_region: String = "us-east-1".into();
+                                let default_name: String = "".into();
+                                let default_location: String = "/".into();
+
                                 self.current_storage_config =
                                     Some(StorageConfig::S3(S3StorageConfig {
                                         id: cuid2::create_id(),
-                                        bucket: "".into(),
-                                        region: "us-east-1".into(),
-                                        endpoint: None,
-                                        access_key: "".into(),
-                                        secret_key: "".into(),
-                                        location: "".into(),
-                                        name: "".into(),
+                                        bucket: default_bucket.clone(),
+                                        region: default_region.clone(),
+                                        endpoint: Some(default_endpoint.clone()),
+                                        access_key: default_access_key.clone(),
+                                        secret_key: default_secret_key.clone(),
+                                        location: default_location.clone(),
+                                        name: default_name.clone(),
                                     }));
+
+                                self.s3_input_endpoint = Input::new(default_endpoint);
+                                self.s3_input_access_key = Input::new(default_access_key);
+                                self.s3_input_secret_key = Input::new(default_secret_key);
+                                self.s3_input_bucket = Input::new(default_bucket);
+                                self.s3_input_region = Input::new(default_region);
+                                self.input_config_name = Input::new(default_name);
+                                self.s3_input_location = Input::new(default_location);
                             }
                         }
                     }
