@@ -5,7 +5,6 @@ use std::{
 };
 
 use crate::databases::{
-    ssh_tunnel::{SshRemoteConfig, SshTunnel},
     version::{Version, VersionTrait},
     DatabaseConfig, DatabaseConnectionTrait, DatabaseMetadata, RestoreOptions, UtilitiesTrait,
 };
@@ -25,32 +24,10 @@ use super::{utilities::PostgreSqlUtilities, version::PostgreSQLVersion};
 pub struct PostgreSqlConnection {
     pub config: DatabaseConfig,
     pub pool: Pool<Postgres>,
-    _ssh_tunnel: Option<SshTunnel>,
 }
 
 impl PostgreSqlConnection {
     pub async fn new(config: DatabaseConfig) -> Result<Self> {
-        let mut config = config.clone();
-        let ssh_tunnel = match &config.ssh_tunnel {
-            Some(ssh_config) => {
-                let tunnel = SshTunnel::new(
-                    ssh_config.clone(),
-                    SshRemoteConfig {
-                        host: config.host.clone(),
-                        port: config.port,
-                    },
-                )?;
-
-                Some(tunnel)
-            }
-            None => None,
-        };
-
-        if let Some(ssh_tunnel) = &ssh_tunnel {
-            config.host = "localhost".into();
-            config.port = ssh_tunnel.local_port;
-        }
-
         let mut connect_options = PgConnectOptions::new()
             .host(&config.host)
             .username(&config.username)
@@ -68,11 +45,7 @@ impl PostgreSqlConnection {
             .connect_with(connect_options)
             .await?;
 
-        Ok(Self {
-            config,
-            pool,
-            _ssh_tunnel: ssh_tunnel,
-        })
+        Ok(Self { config, pool })
     }
 
     async fn get_base_command(&self, bin_name: &str) -> Result<Command> {

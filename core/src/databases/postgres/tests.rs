@@ -1,51 +1,13 @@
 #[cfg(test)]
 mod postgresql_connection_test {
-    use crate::databases::postgres::connection::PostgreSqlConnection;
-    use crate::databases::ssh_tunnel::{SshAuthMethod, SshTunnelConfig};
     use crate::databases::version::Version;
-    use crate::databases::{
-        ConnectionType, DatabaseConfig, DatabaseConnectionTrait, RestoreOptions,
-    };
+    use crate::databases::{DatabaseConnectionTrait, RestoreOptions};
     use crate::test_utils::test_utils::{
         get_postgresql_connection, get_postgresql_pool, initialize_test,
     };
 
-    use anyhow::Result;
-    use dotenv::dotenv;
-    use std::env;
     use std::thread::sleep;
     use std::time::Duration;
-
-    async fn get_tunneled_connection() -> Result<PostgreSqlConnection> {
-        dotenv().ok();
-
-        let port: u16 = env::var("DB_PORT").unwrap_or("0".into()).parse()?;
-        let password = env::var("DB_PASSWORD").unwrap_or_default();
-
-        let config = DatabaseConfig {
-            id: "test".to_string(),
-            name: "test".to_string(),
-            connection_type: ConnectionType::PostgreSql,
-            host: "localhost".into(),
-            password: Some(password),
-            username: env::var("DB_USERNAME").unwrap_or_default(),
-            database: env::var("DB_NAME").unwrap_or_default(),
-            port,
-            ssh_tunnel: Some(SshTunnelConfig {
-                host: env::var("SSH_HOST").unwrap_or_default(),
-                username: env::var("SSH_USERNAME").unwrap_or_default(),
-                port: 22,
-                auth_method: SshAuthMethod::PrivateKey {
-                    key_path: env::var("SSH_KEY_PATH").unwrap_or_default(),
-                    passphrase_key: None,
-                },
-            }),
-        };
-
-        let connection = PostgreSqlConnection::new(config).await?;
-
-        Ok(connection)
-    }
 
     #[tokio::test]
     async fn test_01_connection_test() {
@@ -218,36 +180,5 @@ mod postgresql_connection_test {
 
         let test3_exists = restored_rows.iter().any(|(name, _)| name == "test3");
         assert!(test3_exists, "test3 should be restored");
-    }
-
-    #[ignore]
-    #[tokio::test]
-    async fn test_05_tunneled_connection() {
-        initialize_test();
-        let connection = get_tunneled_connection()
-            .await
-            .expect("Failed to get tunneled connection");
-
-        let is_connected = connection.test().await.expect("Failed to check connection");
-
-        assert!(is_connected);
-    }
-
-    #[ignore]
-    #[tokio::test]
-    async fn test_05_tunneled_backup() {
-        initialize_test();
-        let connection = get_tunneled_connection()
-            .await
-            .expect("Failed to get tunneled connection");
-
-        let mut buf = vec![];
-
-        connection
-            .backup(&mut buf)
-            .await
-            .expect("Failed to check connection");
-
-        assert!(buf.len() > 0);
     }
 }

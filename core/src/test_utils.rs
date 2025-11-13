@@ -89,7 +89,6 @@ pub mod test_utils {
                 env::var("POSTGRESQL_NAME").unwrap_or_default()
             },
             port,
-            ssh_tunnel: None,
         })
         .await?;
 

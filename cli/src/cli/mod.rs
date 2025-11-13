@@ -1,10 +1,7 @@
 use anyhow::{anyhow, Result};
 use clap::{Args, Parser, Subcommand};
 use dbkp_core::{
-    databases::{
-        ssh_tunnel::{SshAuthMethod, SshTunnelConfig},
-        ConnectionType, DatabaseConfig,
-    },
+    databases::{ConnectionType, DatabaseConfig},
     storage::provider::{LocalStorageConfig, S3StorageConfig, StorageConfig},
 };
 
@@ -275,37 +272,6 @@ pub fn database_config_from_cli(args: &DatabaseArgs) -> Result<DatabaseConfig> {
         .username
         .as_ref()
         .ok_or_else(|| anyhow!("Username is required"))?;
-    let ssh_tunnel = if let Some(ssh) = &args.ssh {
-        let ssh_host = ssh
-            .ssh_host
-            .as_ref()
-            .ok_or_else(|| anyhow!("SSH key path is required when using SSH tunnel"))?
-            .clone();
-
-        let ssh_key_path = ssh
-            .ssh_key_path
-            .as_ref()
-            .ok_or_else(|| anyhow!("SSH key path is required when using SSH tunnel"))?
-            .clone();
-
-        let ssh_username = ssh
-            .ssh_username
-            .as_ref()
-            .ok_or_else(|| anyhow!("SSH username is required when using SSH tunnel"))?
-            .clone();
-
-        Some(SshTunnelConfig {
-            port: 22,
-            host: ssh_host,
-            username: ssh_username,
-            auth_method: SshAuthMethod::PrivateKey {
-                key_path: ssh_key_path,
-                passphrase_key: None,
-            },
-        })
-    } else {
-        None
-    };
 
     match database_type.as_str() {
         "postgresql" => Ok(DatabaseConfig {
@@ -317,7 +283,6 @@ pub fn database_config_from_cli(args: &DatabaseArgs) -> Result<DatabaseConfig> {
             port,
             username: username.clone(),
             password: args.password.clone(),
-            ssh_tunnel,
         }),
         "mysql" => Ok(DatabaseConfig {
             connection_type: ConnectionType::MySql,
@@ -328,7 +293,6 @@ pub fn database_config_from_cli(args: &DatabaseArgs) -> Result<DatabaseConfig> {
             port,
             username: username.clone(),
             password: args.password.clone(),
-            ssh_tunnel,
         }),
         _ => Err(anyhow!("Unsupported database type: {}", database_type)),
     }

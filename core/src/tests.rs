@@ -5,10 +5,7 @@ mod vprdbbkp_tests {
     use tempfile::tempdir;
 
     use crate::{
-        databases::{
-            ssh_tunnel::{SshAuthMethod, SshTunnelConfig},
-            ConnectionType, DatabaseConfig, DatabaseConnection,
-        },
+        databases::{ConnectionType, DatabaseConfig, DatabaseConnection},
         storage::provider::{LocalStorageConfig, S3StorageConfig, StorageConfig, StorageProvider},
         test_utils::test_utils::{get_mysql_pool, get_postgresql_pool, initialize_test},
         DbBkp, RestoreOptions,
@@ -66,7 +63,6 @@ mod vprdbbkp_tests {
             username: env::var("POSTGRESQL_USERNAME").unwrap_or_default(),
             database: env::var("POSTGRESQL_NAME").unwrap_or_default(),
             port,
-            ssh_tunnel: None,
         };
 
         Ok(config)
@@ -87,34 +83,7 @@ mod vprdbbkp_tests {
             username: env::var("MYSQL_USERNAME").unwrap_or_default(),
             database: env::var("MYSQL_NAME").unwrap_or_default(),
             port,
-            ssh_tunnel: None,
         };
-
-        Ok(config)
-    }
-
-    async fn get_postgresql_tunneled_config() -> Result<DatabaseConfig> {
-        initialize_test();
-
-        let port: u16 = env::var("DB_PORT").unwrap_or("0".into()).parse()?;
-        let password = env::var("DB_PASSWORD").unwrap_or_default();
-
-        let mut config = get_postgresql_config()?;
-
-        config.password = Some(password);
-        config.port = port;
-        config.username = env::var("DB_USERNAME").unwrap_or_default();
-        config.database = env::var("DB_NAME").unwrap_or_default();
-
-        config.ssh_tunnel = Some(SshTunnelConfig {
-            host: env::var("SSH_HOST").unwrap_or_default(),
-            username: env::var("SSH_USERNAME").unwrap_or_default(),
-            port: 22,
-            auth_method: SshAuthMethod::PrivateKey {
-                key_path: env::var("SSH_KEY_PATH").unwrap_or_default(),
-                passphrase_key: None,
-            },
-        });
 
         Ok(config)
     }
@@ -208,29 +177,6 @@ mod vprdbbkp_tests {
 
         let test3_exists = restored_rows.iter().any(|(name, _)| name == "test3");
         assert!(test3_exists, "test3 should be restored");
-    }
-
-    #[ignore]
-    #[tokio::test]
-    async fn test_02_postgresql_tunneled_backup() {
-        initialize_test();
-        let config = get_postgresql_tunneled_config()
-            .await
-            .expect("Failed to get postgresql connection config");
-
-        let database_connection = DatabaseConnection::new(config.clone())
-            .await
-            .expect("Failed to get database connection");
-
-        let storage_provider = get_s3_provider().expect("Failed to get local storage provider");
-
-        let engine = DbBkp::new(database_connection, storage_provider);
-
-        let backup_name = engine.backup().await.expect("Failed to backup");
-        let entries = engine.list().await.expect("Failed to list backups");
-        let entry = entries.iter().find(|e| e.metadata.name == backup_name);
-
-        assert!(entry.is_some());
     }
 
     #[tokio::test]

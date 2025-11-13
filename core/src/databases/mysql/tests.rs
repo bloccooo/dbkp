@@ -24,7 +24,6 @@ mod mysql_connection_tests {
             username: env::var("MYSQL_USERNAME").unwrap_or_default(),
             database: env::var("MYSQL_NAME").unwrap_or_default(),
             port,
-            ssh_tunnel: None,
         };
 
         Ok(config)

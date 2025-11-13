@@ -9,13 +9,11 @@ use async_trait::async_trait;
 use mysql::connection::MySqlConnection;
 use postgres::connection::PostgreSqlConnection;
 use serde::{Deserialize, Serialize};
-use ssh_tunnel::SshTunnelConfig;
 use tokio::process::Command;
 use version::Version;
 
 pub mod mysql;
 pub mod postgres;
-pub mod ssh_tunnel;
 pub mod version;
 
 pub struct BackupOptions {
@@ -68,7 +66,6 @@ pub struct DatabaseConfig {
     pub database: String,
     pub username: String,
     pub password: Option<String>,
-    pub ssh_tunnel: Option<SshTunnelConfig>,
 }
 
 pub struct DatabaseConnection {

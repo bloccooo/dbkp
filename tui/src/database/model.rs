@@ -139,7 +139,6 @@ impl DatabaseModel {
             port: self.port_input.value().parse::<u16>().unwrap(),
             username: self.username_input.value().to_string(),
             password: Some(self.password_input.value().to_string()),
-            ssh_tunnel: None,
         };
 
         config.add_database_config(new_database_config)?;

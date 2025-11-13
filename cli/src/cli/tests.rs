@@ -31,11 +31,6 @@ mod cli_test {
         assert_eq!(database_config.port, 5432);
         assert_eq!(database_config.username, "username");
         assert_eq!(database_config.password.clone().unwrap(), "password");
-
-        let ssh_config = database_config.ssh_tunnel.clone().unwrap();
-
-        assert_eq!(ssh_config.host, "ssh_host");
-        assert_eq!(ssh_config.username, "ssh_username");
     }
 
     #[test]

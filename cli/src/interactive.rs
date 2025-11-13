@@ -1,10 +1,7 @@
 use anyhow::{anyhow, Result};
 use colored::*;
 use dbkp_core::{
-    databases::{
-        ssh_tunnel::{SshAuthMethod, SshTunnelConfig},
-        ConnectionType, DatabaseConfig,
-    },
+    databases::{ConnectionType, DatabaseConfig},
     storage::provider::{LocalStorageConfig, S3StorageConfig, StorageConfig},
 };
 use inquire::{Confirm, Password, Select, Text};
@@ -218,16 +215,6 @@ impl InteractiveSetup {
             .without_confirmation()
             .prompt_skippable()?;
 
-        let use_ssh = Confirm::new("Use SSH tunnel?")
-            .with_default(false)
-            .prompt()?;
-
-        let ssh_tunnel = if use_ssh {
-            Some(self.setup_ssh_tunnel_interactive()?)
-        } else {
-            None
-        };
-
         Ok(DatabaseConfig {
             connection_type: match db_type {
                 DatabaseType::PostgreSQL => ConnectionType::PostgreSql,
@@ -240,27 +227,6 @@ impl InteractiveSetup {
             port,
             username,
             password,
-            ssh_tunnel,
-        })
-    }
-
-    fn setup_ssh_tunnel_interactive(&self) -> Result<SshTunnelConfig> {
-        let host = Text::new("SSH Host:").prompt()?;
-
-        let username = Text::new("SSH Username:").prompt()?;
-
-        let key_path = Text::new("SSH Private Key Path:")
-            .with_help_message("Path to your SSH private key file")
-            .prompt()?;
-
-        Ok(SshTunnelConfig {
-            port: 22,
-            host,
-            username,
-            auth_method: SshAuthMethod::PrivateKey {
-                key_path,
-                passphrase_key: None,
-            },
         })
     }
 
