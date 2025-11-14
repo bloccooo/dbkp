@@ -1,11 +1,11 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Parser;
-use cli::{database_config_from_cli, parse_retention, storage_from_cli, Cli, Commands};
+use cli::{Cli, Commands, database_config_from_cli, parse_retention, storage_from_cli};
 use colored::*;
 use dbkp_core::{
+    DbBkp, RestoreOptions,
     databases::DatabaseConnection,
     storage::provider::{ListOptions, StorageProvider},
-    DbBkp, RestoreOptions,
 };
 
 mod cli;
@@ -335,7 +335,7 @@ async fn resolve_configs_for_backup(
         database_config_from_cli(&args.database_config)?
     } else {
         return Err(anyhow!(
-            "Either --workspace or database configuration parameters are required.\n\
+            "Database configuration parameters are required.\n\
                 Database parameters: --database-type, --database, --host, --port, --username\n\
                 Use 'dbkp backup --help' for more details."
         ));
@@ -345,10 +345,10 @@ async fn resolve_configs_for_backup(
         storage_from_cli(&args.storage_config)?
     } else {
         return Err(anyhow!(
-                "Either --workspace or storage configuration parameters are required.\n\
+            "Storage configuration parameters are required.\n\
                 Storage parameters: --storage-type, --location (and for S3: --bucket, --endpoint, --access-key, --secret-key)\n\
                 Use 'dbkp backup --help' for more details."
-            ));
+        ));
     };
 
     Ok((database_config, storage_config))
@@ -365,7 +365,7 @@ async fn resolve_configs_for_restore(
         database_config_from_cli(&args.database_config)?
     } else {
         return Err(anyhow!(
-            "Either --workspace or database configuration parameters are required.\n\
+            "Database configuration parameters are required.\n\
                 Database parameters: --database-type, --database, --host, --port, --username\n\
                 Use 'dbkp restore --help' for more details."
         ));
@@ -375,10 +375,10 @@ async fn resolve_configs_for_restore(
         storage_from_cli(&args.storage_config)?
     } else {
         return Err(anyhow!(
-                "Either --workspace or storage configuration parameters are required.\n\
+            "Storage configuration parameters are required.\n\
                 Storage parameters: --storage-type, --location (and for S3: --bucket, --endpoint, --access-key, --secret-key)\n\
                 Use 'dbkp restore --help' for more details."
-            ));
+        ));
     };
 
     Ok((database_config, storage_config))
@@ -392,17 +392,17 @@ async fn resolve_storage_config(
             storage_from_cli(storage_config)
         } else {
             Err(anyhow!(
-                    "Either --workspace or storage configuration parameters are required.\n\
+                "Storage configuration parameters are required.\n\
                     Storage parameters: --storage-type, --location (and for S3: --bucket, --endpoint, --access-key, --secret-key)\n\
                     Use command --help for more details."
-                ))
+            ))
         }
     } else {
         Err(anyhow!(
-                "Either --workspace or storage configuration parameters are required.\n\
+            "Storage configuration parameters are required.\n\
                 Storage parameters: --storage-type, --location (and for S3: --bucket, --endpoint, --access-key, --secret-key)\n\
                 Use command --help for more details."
-            ))
+        ))
     }
 }
 
