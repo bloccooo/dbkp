@@ -3,7 +3,7 @@
 set -e
 
 # Configuration
-VERSION="2.0.0"  # Update this with your latest version
+VERSION="4.0.0"  # Update this with your latest version
 BINARY_NAME="dbkp"
 INSTALL_DIR="/usr/local/bin"
 GITHUB_REPO="vpr-group/dbkp"  # Updated with your actual repo
