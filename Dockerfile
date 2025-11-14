@@ -1,35 +1,55 @@
-# Use a lightweight base image with PostgreSQL client
+# Build stage
+FROM rust:latest AS builder
+
+# Install musl target for static linking
+RUN rustup target add x86_64-unknown-linux-musl
+RUN apt-get update && apt-get install -y \
+	musl-tools \
+	musl-dev \
+	&& rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /build
+
+# Copy workspace files first for better caching
+COPY Cargo.toml Cargo.lock ./
+COPY core/Cargo.toml ./core/
+COPY cli/Cargo.toml ./cli/
+
+# Create dummy source files to cache dependencies
+RUN mkdir -p core/src cli/src && \
+	echo "fn main() {}" > cli/src/main.rs && \
+	echo "" > core/src/lib.rs
+
+# Build dependencies (this layer will be cached if Cargo files don't change)
+RUN cargo build --release --target x86_64-unknown-linux-musl --features vendored-openssl --bin dbkp || true
+
+# Copy actual source code
+COPY core ./core
+COPY cli ./cli
+
+# Build the binary with vendored-openssl for static linking
+RUN cargo build --release --target x86_64-unknown-linux-musl --features vendored-openssl --bin dbkp
+
+# Runtime stage
 FROM ubuntu:22.04
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
 ENV VPRS3BKP_VERSION=latest
 
-# Install dependencies including sudo for the install script
+# Install minimal runtime dependencies
+# Note: PostgreSQL and MySQL clients are automatically installed by dbkp when needed
 RUN apt-get update && apt-get install -y \
-	postgresql-client \
-	mysql-client \
-	curl \
 	ca-certificates \
-	gzip \
-	sudo \
 	&& rm -rf /var/lib/apt/lists/*
 
-# Install dbkp and verify installation
-RUN curl -fsSL https://raw.githubusercontent.com/vpr-group/dbkp/main/install-cli.sh | bash && \
-	echo "=== Checking installation ===" && \
-	ls -la /usr/local/bin/ && \
-	echo "=== Finding dbkp binaries ===" && \
-	find /usr -name "*dbkp*" -o -name "*cli*" 2>/dev/null && \
-	echo "=== Testing binary ===" && \
-	if [ -f /usr/local/bin/dbkp ]; then \
-	/usr/local/bin/dbkp --version && echo "✅ dbkp working"; \
-	elif [ -f /usr/local/bin/cli ]; then \
-	/usr/local/bin/cli --version && echo "✅ cli working"; \
-	ln -s /usr/local/bin/cli /usr/local/bin/dbkp && echo "✅ Created symlink"; \
-	else \
-	echo "❌ No binary found" && exit 1; \
-	fi
+# Copy the binary from builder stage
+COPY --from=builder /build/target/x86_64-unknown-linux-musl/release/dbkp /usr/local/bin/dbkp
+RUN chmod +x /usr/local/bin/dbkp
+
+# Verify installation
+RUN /usr/local/bin/dbkp --version && echo "✅ dbkp working"
 
 # Create a non-root user for security
 RUN useradd -r -u 1001 -g root backup-user -m -d /home/backup-user
