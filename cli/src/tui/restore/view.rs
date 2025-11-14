@@ -1,14 +1,15 @@
 use dbkp_core::storage::provider::StorageConfig;
 use ratatui::{
-    layout::{Constraint, Flex, Layout},
-    widgets::{Block, Borders, Paragraph, Wrap},
     Frame,
+    layout::{Constraint, Flex, Layout},
+    symbols,
+    widgets::{Block, Borders, Paragraph, Wrap},
 };
 
 use crate::tui::{
     model::Model,
     restore::model::{RestoreModel, SelectionMode},
-    utils::{create_list, ListItem},
+    utils::{ListItem, create_list},
     view::View,
 };
 
@@ -33,6 +34,32 @@ impl View for RestoreView {
     }
 
     fn render(&self, frame: &mut Frame) {
+        let databse_configs = self.model.configs.get_database_configs();
+
+        if self.model.in_progress {
+            let block = Block::new()
+                .title("Restore in progress")
+                .borders(Borders::all())
+                .border_set(symbols::border::ROUNDED);
+
+            let selected_database_config = databse_configs
+                .iter()
+                .find(|config| Some(config.id.clone()) == self.model.selected_database_id);
+
+            if let Some(database_config) = selected_database_config
+                && let Some(backup_name) = &self.model.selected_backup_id
+            {
+                let text = format!(
+                    "Restoring \"{}\" database with \"{}\" backup...",
+                    database_config.name, backup_name
+                );
+
+                let paragraph = Paragraph::new(text).block(block).wrap(Wrap { trim: true });
+                frame.render_widget(paragraph, frame.area());
+                return;
+            }
+        }
+
         if self.model.in_progress {
             let paragraph = Paragraph::new("Loading...").wrap(Wrap { trim: true });
             frame.render_widget(paragraph, frame.area());

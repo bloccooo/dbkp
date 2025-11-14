@@ -1,15 +1,15 @@
 use dbkp_core::storage::provider::StorageConfig;
 use ratatui::{
+    Frame,
     layout::{Constraint, Flex, Layout},
     symbols,
     widgets::{Block, Borders, Paragraph, Wrap},
-    Frame,
 };
 
 use crate::tui::{
     backup::model::{BackupModel, SelectionMode},
     model::Model,
-    utils::{create_list, ListItem},
+    utils::{ListItem, create_list},
     view::View,
 };
 
@@ -34,19 +34,51 @@ impl View for BackupView {
     }
 
     fn render(&self, frame: &mut Frame) {
+        let databse_configs = self.backup_model.configs.get_database_configs();
+        let storage_configs = self.backup_model.configs.get_storage_configs();
+
         if self.backup_model.in_progress {
-            let paragraph = Paragraph::new("Loading...").wrap(Wrap { trim: true });
-            frame.render_widget(paragraph, frame.area());
-            return;
+            let block = Block::new()
+                .title("Backup in progress")
+                .borders(Borders::all())
+                .border_set(symbols::border::ROUNDED);
+
+            let selected_database_config = databse_configs
+                .iter()
+                .find(|config| Some(config.id.clone()) == self.backup_model.selected_database_id);
+
+            let selected_storage_config = storage_configs.iter().find(|config| {
+                let config_id = match config {
+                    StorageConfig::Local(config) => &config.id,
+                    StorageConfig::S3(config) => &config.id,
+                };
+
+                Some(config_id.clone()) == self.backup_model.selected_storage_id
+            });
+
+            if let Some(database_config) = selected_database_config
+                && let Some(storage_config) = selected_storage_config
+            {
+                let storage_name = match storage_config {
+                    StorageConfig::Local(config) => &config.name,
+                    StorageConfig::S3(config) => &config.name,
+                };
+
+                let text = format!(
+                    "Dumping \"{}\" database in \"{}\" storage...",
+                    database_config.name, storage_name
+                );
+
+                let paragraph = Paragraph::new(text).block(block).wrap(Wrap { trim: true });
+                frame.render_widget(paragraph, frame.area());
+                return;
+            }
         }
 
         let [column1, column2] =
             Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)])
                 .flex(Flex::Center)
                 .areas(frame.area());
-
-        let databse_configs = self.backup_model.configs.get_database_configs();
-        let storage_configs = self.backup_model.configs.get_storage_configs();
 
         let database_items: Vec<ListItem> = databse_configs
             .iter()

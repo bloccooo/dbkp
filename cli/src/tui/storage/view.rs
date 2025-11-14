@@ -7,7 +7,7 @@ use ratatui::{
 use crate::tui::{
     model::Model,
     storage::model::{CurrentInput, StorageModel},
-    utils::{create_list, render_input, ListItem},
+    utils::{ListItem, create_list, render_input},
     view::View,
 };
 
@@ -33,6 +33,7 @@ impl View for StorageView {
 
     fn render(&self, frame: &mut ratatui::Frame) {
         let block = Block::new()
+            .title("Select storage type")
             .borders(Borders::all())
             .border_set(symbols::border::ROUNDED);
 
