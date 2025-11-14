@@ -16,15 +16,11 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    Interactive,
+    TUI,
     Backup(BackupArgs),
     Restore(RestoreArgs),
     List(ListArgs),
     Cleanup(CleanupArgs),
-    Workspace {
-        #[command(subcommand)]
-        command: WorkspaceCommands,
-    },
 }
 
 #[derive(Subcommand, Debug)]

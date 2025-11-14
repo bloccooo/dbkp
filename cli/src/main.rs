@@ -1,8 +1,6 @@
 use anyhow::{anyhow, Result};
 use clap::Parser;
-use cli::{
-    database_config_from_cli, parse_retention, storage_from_cli, Cli, Commands, WorkspaceCommands,
-};
+use cli::{database_config_from_cli, parse_retention, storage_from_cli, Cli, Commands};
 use colored::*;
 use dbkp_core::{
     databases::DatabaseConnection,
@@ -11,27 +9,18 @@ use dbkp_core::{
 };
 
 mod cli;
-mod interactive;
 mod spinner;
 mod tests;
-mod workspace;
 
-use interactive::InteractiveSetup;
 use spinner::Spinner;
-use workspace::WorkspaceManager;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    match cli.command.unwrap_or(Commands::Interactive) {
-        Commands::Interactive => {
-            let interactive = InteractiveSetup::new()?;
-            interactive.run().await?;
-        }
-        Commands::Workspace { command } => {
-            handle_workspace_command(command).await?;
-        }
+    match cli.command.unwrap_or(Commands::TUI) {
+        Commands::TUI => {}
+
         Commands::Backup(args) => {
             let mut spinner = Spinner::new("Resolving configuration...");
             spinner.start();
@@ -94,17 +83,16 @@ async fn main() -> Result<()> {
             let mut spinner = Spinner::new("Resolving storage configuration...");
             spinner.start();
 
-            let storage_config =
-                match resolve_storage_config(&args.workspace, &Some(args.storage)).await {
-                    Ok(config) => {
-                        spinner.update_message("Storage configuration resolved, connecting...");
-                        config
-                    }
-                    Err(e) => {
-                        spinner.error("Failed to resolve storage configuration");
-                        return Err(e);
-                    }
-                };
+            let storage_config = match resolve_storage_config(&Some(args.storage)).await {
+                Ok(config) => {
+                    spinner.update_message("Storage configuration resolved, connecting...");
+                    config
+                }
+                Err(e) => {
+                    spinner.error("Failed to resolve storage configuration");
+                    return Err(e);
+                }
+            };
 
             let storage_provider = match StorageProvider::new(storage_config) {
                 Ok(provider) => {
@@ -260,17 +248,16 @@ async fn main() -> Result<()> {
             let mut spinner = Spinner::new("Resolving storage configuration...");
             spinner.start();
 
-            let storage_config =
-                match resolve_storage_config(&args.workspace, &Some(args.storage)).await {
-                    Ok(config) => {
-                        spinner.update_message("Storage configuration resolved, connecting...");
-                        config
-                    }
-                    Err(e) => {
-                        spinner.error("Failed to resolve storage configuration");
-                        return Err(e);
-                    }
-                };
+            let storage_config = match resolve_storage_config(&Some(args.storage)).await {
+                Ok(config) => {
+                    spinner.update_message("Storage configuration resolved, connecting...");
+                    config
+                }
+                Err(e) => {
+                    spinner.error("Failed to resolve storage configuration");
+                    return Err(e);
+                }
+            };
 
             let storage = match StorageProvider::new(storage_config) {
                 Ok(provider) => {
@@ -327,144 +314,34 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn handle_workspace_command(command: WorkspaceCommands) -> Result<()> {
-    let mut spinner = Spinner::new("Loading workspaces...");
-    spinner.start();
-
-    let workspace_manager = match WorkspaceManager::new() {
-        Ok(manager) => manager,
-        Err(e) => {
-            spinner.error("Failed to initialize workspace manager");
-            return Err(e);
-        }
-    };
-
-    let mut collection = match workspace_manager.load() {
-        Ok(collection) => {
-            spinner.stop();
-            collection
-        }
-        Err(e) => {
-            spinner.error("Failed to load workspaces");
-            return Err(e);
-        }
-    };
-
-    match command {
-        WorkspaceCommands::List => {
-            if collection.workspaces.is_empty() {
-                println!("{}", "[INFO] No workspaces found.".cyan());
-            } else {
-                println!("\n{}:", "Available workspaces".green().bold());
-                for workspace in collection.list_workspaces() {
-                    let active_marker =
-                        if Some(&workspace.name) == collection.active_workspace.as_ref() {
-                            " (active)".green().to_string()
-                        } else {
-                            "".to_string()
-                        };
-                    if active_marker.is_empty() {
-                        println!("  - {}", workspace.name);
-                    } else {
-                        println!("  - {} {}", workspace.name.green().bold(), active_marker);
-                    }
-                }
-            }
-        }
-        WorkspaceCommands::Create { name: _ } => {
-            println!("Interactive workspace creation not implemented yet.");
-            println!("Use 'dbkp interactive' for guided workspace setup.");
-        }
-        WorkspaceCommands::Delete { name } => {
-            if collection.remove_workspace(&name).is_some() {
-                let mut spinner = Spinner::new("Deleting workspace...");
-                spinner.start();
-                match workspace_manager.save(&collection) {
-                    Ok(_) => {
-                        spinner.success(format!("Workspace '{}' deleted.", name.green().bold()));
-                    }
-                    Err(e) => {
-                        spinner.error("Failed to save workspace configuration");
-                        return Err(e);
-                    }
-                }
-            } else {
-                println!(
-                    "{}",
-                    format!("[ERROR] Workspace '{}' not found.", name).red()
-                );
-            }
-        }
-        WorkspaceCommands::Use { name } => {
-            if collection.set_active(&name).is_ok() {
-                let mut spinner = Spinner::new("Switching workspace...");
-                spinner.start();
-                match workspace_manager.save(&collection) {
-                    Ok(_) => {
-                        spinner
-                            .success(format!("Switched to workspace '{}'.", name.green().bold()));
-                    }
-                    Err(e) => {
-                        spinner.error("Failed to save workspace configuration");
-                        return Err(e);
-                    }
-                }
-            } else {
-                println!(
-                    "{}",
-                    format!("[ERROR] Workspace '{}' not found.", name).red()
-                );
-            }
-        }
-        WorkspaceCommands::Active => {
-            if let Some(workspace) = collection.get_active() {
-                println!("Active workspace: {}", workspace.name.green().bold());
-            } else {
-                println!("{}", "[INFO] No active workspace set.".cyan());
-            }
-        }
-    }
-
-    Ok(())
-}
-
 async fn resolve_configs_for_backup(
     args: &cli::BackupArgs,
 ) -> Result<(
     dbkp_core::databases::DatabaseConfig,
     dbkp_core::storage::provider::StorageConfig,
 )> {
-    if let Some(workspace_name) = &args.workspace {
-        let workspace_manager = WorkspaceManager::new()?;
-        let collection = workspace_manager.load()?;
-        let workspace = collection
-            .get_workspace(workspace_name)
-            .ok_or_else(|| anyhow!("Workspace '{}' not found", workspace_name))?;
-        Ok((workspace.database.clone(), workspace.storage.clone()))
+    // Check if we have direct CLI parameters
+    let database_config = if has_database_config(&args.database_config) {
+        database_config_from_cli(&args.database_config)?
     } else {
-        // Check if we have direct CLI parameters
-        let database_config = if has_database_config(&args.database_config) {
-            database_config_from_cli(&args.database_config)?
-        } else {
-            return Err(anyhow!(
-                "Either --workspace or database configuration parameters are required.\n\
+        return Err(anyhow!(
+            "Either --workspace or database configuration parameters are required.\n\
                 Database parameters: --database-type, --database, --host, --port, --username\n\
                 Use 'dbkp backup --help' for more details."
-            ));
-        };
+        ));
+    };
 
-        let storage_config = if has_storage_config(&args.storage_config) {
-            storage_from_cli(&args.storage_config)?
-        } else {
-            return Err(anyhow!(
+    let storage_config = if has_storage_config(&args.storage_config) {
+        storage_from_cli(&args.storage_config)?
+    } else {
+        return Err(anyhow!(
                 "Either --workspace or storage configuration parameters are required.\n\
                 Storage parameters: --storage-type, --location (and for S3: --bucket, --endpoint, --access-key, --secret-key)\n\
                 Use 'dbkp backup --help' for more details."
             ));
-        };
+    };
 
-        Ok((database_config, storage_config))
-    }
+    Ok((database_config, storage_config))
 }
 
 async fn resolve_configs_for_restore(
@@ -473,68 +350,49 @@ async fn resolve_configs_for_restore(
     dbkp_core::databases::DatabaseConfig,
     dbkp_core::storage::provider::StorageConfig,
 )> {
-    if let Some(workspace_name) = &args.workspace {
-        let workspace_manager = WorkspaceManager::new()?;
-        let collection = workspace_manager.load()?;
-        let workspace = collection
-            .get_workspace(workspace_name)
-            .ok_or_else(|| anyhow!("Workspace '{}' not found", workspace_name))?;
-        Ok((workspace.database.clone(), workspace.storage.clone()))
+    // Check if we have direct CLI parameters
+    let database_config = if has_database_config(&args.database_config) {
+        database_config_from_cli(&args.database_config)?
     } else {
-        // Check if we have direct CLI parameters
-        let database_config = if has_database_config(&args.database_config) {
-            database_config_from_cli(&args.database_config)?
-        } else {
-            return Err(anyhow!(
-                "Either --workspace or database configuration parameters are required.\n\
+        return Err(anyhow!(
+            "Either --workspace or database configuration parameters are required.\n\
                 Database parameters: --database-type, --database, --host, --port, --username\n\
                 Use 'dbkp restore --help' for more details."
-            ));
-        };
+        ));
+    };
 
-        let storage_config = if has_storage_config(&args.storage_config) {
-            storage_from_cli(&args.storage_config)?
-        } else {
-            return Err(anyhow!(
+    let storage_config = if has_storage_config(&args.storage_config) {
+        storage_from_cli(&args.storage_config)?
+    } else {
+        return Err(anyhow!(
                 "Either --workspace or storage configuration parameters are required.\n\
                 Storage parameters: --storage-type, --location (and for S3: --bucket, --endpoint, --access-key, --secret-key)\n\
                 Use 'dbkp restore --help' for more details."
             ));
-        };
+    };
 
-        Ok((database_config, storage_config))
-    }
+    Ok((database_config, storage_config))
 }
 
 async fn resolve_storage_config(
-    workspace_name: &Option<String>,
     storage_args: &Option<cli::StorageArgs>,
 ) -> Result<dbkp_core::storage::provider::StorageConfig> {
-    if let Some(workspace_name) = workspace_name {
-        let workspace_manager = WorkspaceManager::new()?;
-        let collection = workspace_manager.load()?;
-        let workspace = collection
-            .get_workspace(workspace_name)
-            .ok_or_else(|| anyhow!("Workspace '{}' not found", workspace_name))?;
-        Ok(workspace.storage.clone())
-    } else {
-        if let Some(storage_config) = storage_args {
-            if has_storage_config(storage_config) {
-                storage_from_cli(storage_config)
-            } else {
-                Err(anyhow!(
+    if let Some(storage_config) = storage_args {
+        if has_storage_config(storage_config) {
+            storage_from_cli(storage_config)
+        } else {
+            Err(anyhow!(
                     "Either --workspace or storage configuration parameters are required.\n\
                     Storage parameters: --storage-type, --location (and for S3: --bucket, --endpoint, --access-key, --secret-key)\n\
                     Use command --help for more details."
                 ))
-            }
-        } else {
-            Err(anyhow!(
+        }
+    } else {
+        Err(anyhow!(
                 "Either --workspace or storage configuration parameters are required.\n\
                 Storage parameters: --storage-type, --location (and for S3: --bucket, --endpoint, --access-key, --secret-key)\n\
                 Use command --help for more details."
             ))
-        }
     }
 }
 
