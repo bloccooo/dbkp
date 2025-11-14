@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::{Args, Parser, Subcommand};
 use dbkp_core::{
     databases::{ConnectionType, DatabaseConfig},
@@ -23,20 +23,8 @@ pub enum Commands {
     Cleanup(CleanupArgs),
 }
 
-#[derive(Subcommand, Debug)]
-pub enum WorkspaceCommands {
-    List,
-    Create { name: String },
-    Delete { name: String },
-    Use { name: String },
-    Active,
-}
-
 #[derive(Args, Debug)]
 pub struct BackupArgs {
-    #[arg(short, long, help = "Use workspace for configuration")]
-    pub workspace: Option<String>,
-
     #[command(flatten)]
     pub database_config: DatabaseArgs,
 
@@ -58,9 +46,6 @@ pub struct RestoreArgs {
     #[arg(long)]
     pub latest: bool,
 
-    #[arg(short, long, help = "Use workspace for configuration")]
-    pub workspace: Option<String>,
-
     #[command(flatten)]
     pub database_config: DatabaseArgs,
 
@@ -79,9 +64,6 @@ pub struct ListArgs {
     #[arg(long, default_value = "10")]
     pub limit: Option<usize>,
 
-    #[arg(short, long, help = "Use workspace for configuration")]
-    pub workspace: Option<String>,
-
     #[command(flatten)]
     pub storage: StorageArgs,
 }
@@ -99,9 +81,6 @@ pub struct CleanupArgs {
 
     #[arg(short, long, help = "Database name to cleanup backups for")]
     pub database: Option<String>,
-
-    #[arg(short, long, help = "Use workspace for configuration")]
-    pub workspace: Option<String>,
 
     #[command(flatten)]
     pub storage: StorageArgs,
@@ -183,11 +162,13 @@ pub fn parse_retention(retention: &str) -> Result<u64> {
         .map_err(|_| anyhow!("Invalid retention value"))?;
 
     match retention.chars().last().unwrap() {
-        'd' => Ok(value), // days
-        'w' => Ok(value * 7), // weeks to days
-        'm' => Ok(value * 30), // months to days (approximate)
+        'd' => Ok(value),       // days
+        'w' => Ok(value * 7),   // weeks to days
+        'm' => Ok(value * 30),  // months to days (approximate)
         'y' => Ok(value * 365), // years to days (approximate)
-        _ => Err(anyhow!("Invalid retention unit. Use 'd' for days, 'w' for weeks, 'm' for months, or 'y' for years")),
+        _ => Err(anyhow!(
+            "Invalid retention unit. Use 'd' for days, 'w' for weeks, 'm' for months, or 'y' for years"
+        )),
     }
 }
 

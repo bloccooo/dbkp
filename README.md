@@ -2,7 +2,7 @@
 
 A simple tool for backing up databases to various cloud storage providers or local filesystems.
 
-Designed to make database migrations easier, this project streamlines copying, backup, and restoration operations. It works both as a command-line tool for server automation and through a GUI for everyday development tasks like pulling production data into your local environment.
+Designed to make database migrations easier, this project streamlines copying, backup, and restoration operations. It consists of a **library** (`dbkp-core`) and a **CLI tool** that can be used both as a command-line interface for server automation and through an interactive **TUI (Terminal User Interface)** for everyday development tasks like pulling production data into your local environment.
 
 **Important Note:** This is a side project used currently as an internal tool. It is not an industrial-grade solution. It only provides logical backup for the moment and might struggle with massive databases. Works great for development, testing, and smaller projects, but maybe don't bet your mission-critical production systems on it just yet...
 
@@ -15,13 +15,13 @@ If you need more advanced tools please check [Barman](https://pgbarman.org) or [
 #### Linux
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/vpr-group/dbkp/main/install-cli.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/bloccooo/dbkp/main/install-cli.sh | sudo bash
 ```
 
 #### macOS
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/vpr-group/dbkp/main/install-cli.sh | bash
+curl -sSL https://raw.githubusercontent.com/bloccooo/dbkp/main/install-cli.sh | bash
 ```
 
 Note: macOS users may need to remove `sudo` depending on their permission settings.
@@ -30,7 +30,7 @@ Note: macOS users may need to remove `sudo` depending on their permission settin
 
 ```bash
 # Clone the repository
-git clone https://github.com/vpr-group/dbkp.git
+git clone https://github.com/bloccooo/dbkp.git
 cd dbkp
 
 # Build the project
@@ -38,58 +38,62 @@ cd cli
 cargo build --release
 
 # Install the binary
-sudo cp target/release/cli /usr/local/bin/dbkp
+sudo cp target/release/dbkp /usr/local/bin/dbkp
 ```
 
-## GUI Application
+## TUI (Terminal User Interface)
 
-This project also provides a GUI application for easier visual management of backups and databases. The GUI offers the same functionality as the CLI with a user-friendly interface.
+The CLI tool includes an interactive TUI mode that provides a visual, menu-driven interface for managing backups and databases. The TUI offers the same functionality as the command-line interface with an intuitive, user-friendly experience.
 
-**Note**: The GUI application currently requires manual building and is not distributed as pre-built binaries.
+### Launching the TUI
 
-### Building the GUI
-
-To build and run the GUI application:
+Simply run `dbkp` without any arguments to launch the TUI:
 
 ```bash
-# Clone the repository (if not already done)
-git clone https://github.com/vpr-group/dbkp.git
-cd dbkp
-
-# Build the GUI application
-cd app
-# Follow build instructions in /app directory
+dbkp
 ```
 
-For detailed GUI setup instructions, features, and usage, see the [GUI Documentation](/app).
+The TUI provides:
+
+- Visual database configuration
+- Storage setup with validation
+- Backup and restore operations with progress indicators
+- Easy navigation through menus
+
+You can exit the TUI at any time using `esc`.
 
 ## CLI Documentation
 
 For detailed CLI usage, commands, parameters, and examples, see the [CLI Documentation](/cli/README.md).
 
-The CLI supports multiple usage modes:
-- **Interactive Mode**: Guided wizard for beginners
-- **Workspace Mode**: Saved configurations for regular use
+The CLI tool supports multiple usage modes:
+
+- **TUI Mode**: Interactive terminal user interface (launch with `dbkp`)
 - **Direct Parameters**: Full command-line control for automation
 
 ## Features
 
 ### Database Support
+
 - **PostgreSQL**: Full backup and restore support with streaming architecture
 - **Version Detection**: Automatic PostgreSQL version detection and compatibility
 
 ### Storage Backends
+
 - **S3-Compatible Storage**: Amazon S3, MinIO, DigitalOcean Spaces, and other S3-compatible providers
 - **Local Filesystem**: Store backups on local or network-mounted filesystems
 
 ### Backup & Restore Operations
+
 - **Streaming Architecture**: Memory-efficient streaming for large databases without loading everything into memory
 - **Logical Backups**: Full schema and data backup using `pg_dump`
 
 ### User Experience
-- **Interactive Mode**: Guided setup wizard for easy configuration
+
+- **TUI Mode**: Interactive terminal user interface for visual management
 
 ### Automation & Integration
+
 - **CLI Automation**: Full command-line interface for scripts and CI/CD
 - **Cron Job Ready**: Designed for scheduled backup operations
 - **Docker Compatible**: Works in containerized environments
@@ -97,10 +101,10 @@ The CLI supports multiple usage modes:
 ## Quick Start Example
 
 ```bash
-# Interactive mode (recommended for first-time users)
+# TUI mode (recommended for first-time users)
 dbkp
 
-# Direct backup to S3
+# Command-line backup to S3
 dbkp backup \
   --database myapp \
   --host localhost \
@@ -119,19 +123,23 @@ dbkp restore \
 
 ## Architecture
 
-The project is organized into several modules:
+The project is organized into two main components:
 
-- **Core Library** (`/core`): Database connections, backup/restore logic, and storage backends
-- **CLI Tool** (`/cli`): Command-line interface with interactive and direct modes
+- **Core Library** (`/core`): The `dbkp-core` library containing database connections, backup/restore logic, and storage backends. This can be used as a dependency in other Rust projects.
+- **CLI Tool** (`/cli`): The `dbkp` command-line tool that provides:
+  - **TUI Mode**: Interactive terminal user interface for visual management
+  - **Command-Line Mode**: Direct commands for automation and scripting
 
 ## Use Cases
 
 ### Development & Testing
+
 - Pull production data to local development environments
 - Create test data snapshots for consistent testing
 - Quick database migrations between environments
 
 ### Small to Medium Production
+
 - Automated daily/weekly backups with retention policies
 - Database migrations and deployments
 - Disaster recovery for smaller applications
