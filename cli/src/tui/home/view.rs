@@ -1,12 +1,13 @@
 use ratatui::{
-    Frame, symbols,
+    symbols,
     widgets::{Block, Borders},
+    Frame,
 };
 
-use crate::{
+use crate::tui::{
     home::model::HomeModel,
     model::Model,
-    utils::{ListItem, create_list},
+    utils::{create_list, ListItem},
     view::View,
 };
 

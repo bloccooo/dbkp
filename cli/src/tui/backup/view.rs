@@ -1,15 +1,15 @@
 use dbkp_core::storage::provider::StorageConfig;
 use ratatui::{
-    Frame,
     layout::{Constraint, Flex, Layout},
     symbols,
     widgets::{Block, Borders, Paragraph, Wrap},
+    Frame,
 };
 
-use crate::{
+use crate::tui::{
     backup::model::{BackupModel, SelectionMode},
     model::Model,
-    utils::{ListItem, create_list},
+    utils::{create_list, ListItem},
     view::View,
 };
 

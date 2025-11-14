@@ -1,6 +1,6 @@
 use ratatui::Frame;
 
-use crate::model::Model;
+use crate::tui::model::Model;
 
 pub trait View: std::fmt::Debug + Send + Sync {
     fn render(&self, frame: &mut Frame);

@@ -4,10 +4,10 @@ use ratatui::{
     widgets::{Block, Borders},
 };
 
-use crate::{
+use crate::tui::{
     model::Model,
     storage::model::{CurrentInput, StorageModel},
-    utils::{ListItem, create_list, render_input},
+    utils::{create_list, render_input, ListItem},
     view::View,
 };
 

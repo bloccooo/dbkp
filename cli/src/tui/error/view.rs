@@ -1,10 +1,10 @@
 use ratatui::{
-    Frame,
     style::{Color, Style},
     widgets::{Block, Borders, Paragraph, Wrap},
+    Frame,
 };
 
-use crate::{error::model::ErrorModel, model::Model, utils::centered_rect, view::View};
+use crate::tui::{error::model::ErrorModel, model::Model, utils::centered_rect, view::View};
 
 #[derive(Clone, Debug)]
 pub struct ErrorView {

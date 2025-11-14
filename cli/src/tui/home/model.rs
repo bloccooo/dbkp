@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use crossterm::event::{Event as CrosstermEvent, KeyCode};
 use tokio::sync::mpsc;
 
-use crate::{
+use crate::tui::{
     backup::{model::BackupModel, view::BackupView},
     configs::Configs,
     database::{model::DatabaseModel, view::DatabaseView},

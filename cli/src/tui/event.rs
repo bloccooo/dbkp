@@ -5,7 +5,7 @@ use crossterm::event::Event as CrosstermEvent;
 use futures::{FutureExt, StreamExt};
 use tokio::sync::mpsc;
 
-use crate::view::View;
+use crate::tui::view::View;
 
 const TICK_FPS: f64 = 10.0;
 

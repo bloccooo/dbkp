@@ -1,9 +1,9 @@
 use ratatui::{
-    Frame,
     layout::{Constraint, Direction, Layout},
+    Frame,
 };
 
-use crate::{
+use crate::tui::{
     database::model::{CurrentInput, DatabaseModel},
     model::Model,
     utils::render_input,

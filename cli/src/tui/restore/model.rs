@@ -1,16 +1,16 @@
 use std::time::Duration;
 
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use crossterm::event::{Event as CrosstermEvent, KeyCode};
 use dbkp_core::{
-    DbBkp, RestoreOptions,
     databases::DatabaseConnection,
     storage::provider::{StorageConfig, StorageProvider},
+    DbBkp, RestoreOptions,
 };
 use tokio::sync::mpsc;
 
-use crate::{
+use crate::tui::{
     configs::Configs,
     error::{model::ErrorModel, view::ErrorView},
     event::Event,

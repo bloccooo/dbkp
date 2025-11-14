@@ -11,15 +11,25 @@ use dbkp_core::{
 mod cli;
 mod spinner;
 mod tests;
+mod tui;
 
 use spinner::Spinner;
+
+use crate::tui::app::App;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command.unwrap_or(Commands::TUI) {
-        Commands::TUI => {}
+        Commands::TUI => {
+            color_eyre::install().map_err(|e| anyhow!(e))?;
+            let mut terminal = ratatui::init();
+            let mut app = App::new().map_err(|e| anyhow!(e))?;
+            let _res = app.run(&mut terminal).await;
+            terminal.show_cursor()?;
+            ratatui::restore();
+        }
 
         Commands::Backup(args) => {
             let mut spinner = Spinner::new("Resolving configuration...");

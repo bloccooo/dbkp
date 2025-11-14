@@ -1,7 +1,7 @@
 use anyhow::Result;
-use ratatui::{Terminal, prelude::Backend};
+use ratatui::{prelude::Backend, Terminal};
 
-use crate::{
+use crate::tui::{
     error::{model::ErrorModel, view::ErrorView},
     event::{Event, EventHandler},
     home::{model::HomeModel, view::HomeView},

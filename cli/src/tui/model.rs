@@ -2,7 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use crossterm::event::Event;
 
-use crate::view::View;
+use crate::tui::view::View;
 
 #[async_trait]
 pub trait Model: Send + Sync + Unpin {

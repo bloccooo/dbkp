@@ -10,7 +10,7 @@ use dbkp_core::{
 };
 use tokio::sync::mpsc;
 
-use crate::{
+use crate::tui::{
     backup::view::BackupView,
     configs::Configs,
     error::{model::ErrorModel, view::ErrorView},

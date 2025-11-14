@@ -1,11 +1,11 @@
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use crossterm::event::{Event as CrosstermEvent, KeyCode};
 use dbkp_core::databases::{ConnectionType, DatabaseConfig};
 use tokio::sync::mpsc;
-use tui_input::{Input, backend::crossterm::EventHandler};
+use tui_input::{backend::crossterm::EventHandler, Input};
 
-use crate::{
+use crate::tui::{
     configs::Configs,
     database::view::DatabaseView,
     event::Event,

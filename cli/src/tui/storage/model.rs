@@ -1,4 +1,4 @@
-use crate::{
+use crate::tui::{
     configs::Configs,
     event::Event,
     home::{model::HomeModel, view::HomeView},
@@ -6,12 +6,12 @@ use crate::{
     storage::view::{LocalStorageView, S3StorageView, StorageView},
     view::View,
 };
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use crossterm::event::{Event as CrosstermEvent, KeyCode};
 use dbkp_core::storage::provider::{LocalStorageConfig, S3StorageConfig, StorageConfig};
 use tokio::sync::mpsc;
-use tui_input::{Input, backend::crossterm::EventHandler};
+use tui_input::{backend::crossterm::EventHandler, Input};
 
 #[derive(Clone, Debug)]
 pub enum CurrentInput {

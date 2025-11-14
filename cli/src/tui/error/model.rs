@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use crossterm::event::Event as CrosstermEvent;
 use tokio::sync::mpsc;
 
-use crate::{
+use crate::tui::{
     error::view::ErrorView,
     event::Event,
     home::{model::HomeModel, view::HomeView},
