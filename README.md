@@ -2,7 +2,7 @@
 
 A simple tool for backing up databases to various cloud storage providers or local filesystems.
 
-Designed to make database migrations easier, this project streamlines copying, backup, and restoration operations. It consists of a **library** (`dbkp-core`) and a **CLI tool** that can be used both as a command-line interface for server automation and through an interactive **TUI (Terminal User Interface)** for everyday development tasks like pulling production data into your local environment.
+Designed to make database migrations easier, this project streamlines copying, backup, and restoration operations. It consists of a **library** and a **CLI tool** that can be used both as a command-line interface for server automation and through an interactive **TUI (Terminal User Interface)** for everyday development tasks like pulling production data into your local environment.
 
 **Important Note:** This is a side project used currently as an internal tool. It is not an industrial-grade solution. It only provides logical backup for the moment and might struggle with massive databases. Works great for development, testing, and smaller projects, but maybe don't bet your mission-critical production systems on it just yet...
 
