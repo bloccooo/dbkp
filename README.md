@@ -57,8 +57,8 @@ The TUI provides:
 
 - Visual database configuration
 - Storage setup with validation
-- Backup and restore operations with progress indicators
-- Easy navigation through menus
+- Backup and restore operations
+- Navigation through menus
 
 You can exit the TUI at any time using `esc`.
 
@@ -69,13 +69,13 @@ For detailed CLI usage, commands, parameters, and examples, see the [CLI Documen
 The CLI tool supports multiple usage modes:
 
 - **TUI Mode**: Interactive terminal user interface (launch with `dbkp`)
-- **Direct Parameters**: Full command-line control for automation
+- **Direct Parameters**: For command-line control for automation
 
 ## Features
 
 ### Database Support
 
-- **PostgreSQL**: Full backup and restore support with streaming architecture
+- **PostgreSQL**: Backup and restore support
 - **Version Detection**: Automatic PostgreSQL version detection and compatibility
 
 ### Storage Backends
@@ -85,7 +85,7 @@ The CLI tool supports multiple usage modes:
 
 ### Backup & Restore Operations
 
-- **Streaming Architecture**: Memory-efficient streaming for large databases without loading everything into memory
+- **Streaming Architecture**: Memory-efficient streaming for large databases
 - **Logical Backups**: Full schema and data backup using `pg_dump`
 
 ### User Experience
@@ -94,7 +94,7 @@ The CLI tool supports multiple usage modes:
 
 ### Automation & Integration
 
-- **CLI Automation**: Full command-line interface for scripts and CI/CD
+- **CLI Automation**: Command-line interface for scripts and CI/CD
 - **Cron Job Ready**: Designed for scheduled backup operations
 - **Docker Compatible**: Works in containerized environments
 
