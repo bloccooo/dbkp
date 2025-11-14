@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use crossterm::event::{Event as CrosstermEvent, KeyCode};
 use dbkp_core::{
     DbBkp,
-    databases::DatabaseConnection,
+    databases::{DatabaseConfig, DatabaseConnection},
     storage::provider::{StorageConfig, StorageProvider},
 };
 use tokio::sync::mpsc;
@@ -146,7 +146,14 @@ impl BackupModel {
         }
     }
 
-    pub fn save_selection(&mut self) {
+    pub fn cycle_through_columns(&mut self, _direction: bool) {
+        self.selection_mode = match self.selection_mode {
+            SelectionMode::Storage => SelectionMode::DB,
+            SelectionMode::DB => SelectionMode::Storage,
+        }
+    }
+
+    fn try_and_restore(&mut self) -> Result<()> {
         let database_configs = self.configs.get_database_configs();
         let storage_configs = self.configs.get_storage_configs();
 
@@ -158,7 +165,6 @@ impl BackupModel {
                     .unwrap();
 
                 self.selected_database_id = Some(selected_config.id.clone());
-                self.selection_mode = SelectionMode::Storage;
             }
             SelectionMode::Storage => {
                 let selected_config = storage_configs
@@ -174,12 +180,7 @@ impl BackupModel {
                     StorageConfig::S3(config) => Some(config.id.clone()),
                 };
             }
-        }
-    }
-
-    fn backup(&mut self) -> Result<()> {
-        let database_configs = self.configs.get_database_configs();
-        let storage_configs = self.configs.get_storage_configs();
+        };
 
         let database_config = match &self.selected_database_id {
             Some(id) => database_configs.iter().find(|config| config.id == *id),
@@ -194,73 +195,83 @@ impl BackupModel {
             None => None,
         };
 
-        if database_config.is_some() && storage_config.is_some() {
-            self.in_progress = true;
-            let sender = self.event_sender.clone();
-
-            let home_view = HomeView::new(HomeModel::new(sender.clone())?);
-            let database_config = database_config.unwrap().clone();
-            let storage_config = storage_config.unwrap().clone();
-
-            tokio::spawn(async move {
-                let database_connection_result = tokio::time::timeout(
-                    Duration::from_secs(5),
-                    DatabaseConnection::new(database_config),
-                )
-                .await;
-
-                let database_connection = match database_connection_result {
-                    Ok(Ok(connection)) => connection,
-                    Ok(Err(e)) => {
-                        let error_view = ErrorView::new(ErrorModel::new(
-                            sender.clone(),
-                            Some("Database Connection Error".to_string()),
-                            e.to_string(),
-                        ));
-                        let _ = sender.send(Event::View(Box::new(error_view)));
-                        return;
-                    }
-                    Err(_) => {
-                        let error_view = ErrorView::new(ErrorModel::new(
-                            sender.clone(),
-                            Some("Database Connection Timeout".to_string()),
-                            "Timeout".to_string(),
-                        ));
-                        let _ = sender.send(Event::View(Box::new(error_view)));
-                        return;
-                    }
-                };
-
-                let storage_provider = match StorageProvider::new(storage_config) {
-                    Ok(provider) => provider,
-                    Err(e) => {
-                        let error_view = ErrorView::new(ErrorModel::new(
-                            sender.clone(),
-                            Some("Storage Provider Error".to_string()),
-                            e.to_string(),
-                        ));
-                        let _ = sender.send(Event::View(Box::new(error_view)));
-                        return;
-                    }
-                };
-
-                let db_bkp = DbBkp::new(database_connection, storage_provider);
-
-                match db_bkp.backup().await {
-                    Ok(_) => {
-                        let _ = sender.send(Event::View(Box::new(home_view))).unwrap();
-                    }
-                    Err(e) => {
-                        let error_view = ErrorView::new(ErrorModel::new(
-                            sender.clone(),
-                            Some("Backup Failed".to_string()),
-                            e.to_string(),
-                        ));
-                        let _ = sender.send(Event::View(Box::new(error_view)));
-                    }
-                };
-            });
+        if let Some(database_config) = database_config
+            && let Some(storage_config) = storage_config
+        {
+            self.backup(database_config.clone(), storage_config.clone())?;
         }
+
+        Ok(())
+    }
+
+    fn backup(
+        &mut self,
+        database_config: DatabaseConfig,
+        storage_config: StorageConfig,
+    ) -> Result<()> {
+        self.in_progress = true;
+        let sender = self.event_sender.clone();
+
+        let home_view = HomeView::new(HomeModel::new(sender.clone())?);
+
+        tokio::spawn(async move {
+            let database_connection_result = tokio::time::timeout(
+                Duration::from_secs(5),
+                DatabaseConnection::new(database_config),
+            )
+            .await;
+
+            let database_connection = match database_connection_result {
+                Ok(Ok(connection)) => connection,
+                Ok(Err(e)) => {
+                    let error_view = ErrorView::new(ErrorModel::new(
+                        sender.clone(),
+                        Some("Database Connection Error".to_string()),
+                        e.to_string(),
+                    ));
+                    let _ = sender.send(Event::View(Box::new(error_view)));
+                    return;
+                }
+                Err(_) => {
+                    let error_view = ErrorView::new(ErrorModel::new(
+                        sender.clone(),
+                        Some("Database Connection Timeout".to_string()),
+                        "Timeout".to_string(),
+                    ));
+                    let _ = sender.send(Event::View(Box::new(error_view)));
+                    return;
+                }
+            };
+
+            let storage_provider = match StorageProvider::new(storage_config) {
+                Ok(provider) => provider,
+                Err(e) => {
+                    let error_view = ErrorView::new(ErrorModel::new(
+                        sender.clone(),
+                        Some("Storage Provider Error".to_string()),
+                        e.to_string(),
+                    ));
+                    let _ = sender.send(Event::View(Box::new(error_view)));
+                    return;
+                }
+            };
+
+            let db_bkp = DbBkp::new(database_connection, storage_provider);
+
+            match db_bkp.backup().await {
+                Ok(_) => {
+                    let _ = sender.send(Event::View(Box::new(home_view))).unwrap();
+                }
+                Err(e) => {
+                    let error_view = ErrorView::new(ErrorModel::new(
+                        sender.clone(),
+                        Some("Backup Failed".to_string()),
+                        e.to_string(),
+                    ));
+                    let _ = sender.send(Event::View(Box::new(error_view)));
+                }
+            };
+        });
 
         return Ok(());
     }
@@ -290,21 +301,12 @@ impl Model for BackupModel {
                 KeyCode::Up => {
                     self.select_previous();
                 }
-                KeyCode::Enter => {
-                    self.save_selection();
-                    self.backup()?;
+                KeyCode::Enter | KeyCode::Right => {
+                    self.try_and_restore()?;
+                    self.cycle_through_columns(true);
                 }
                 KeyCode::Left => {
-                    self.selection_mode = match self.selection_mode {
-                        SelectionMode::Storage => SelectionMode::DB,
-                        SelectionMode::DB => SelectionMode::Storage,
-                    }
-                }
-                KeyCode::Right => {
-                    self.selection_mode = match self.selection_mode {
-                        SelectionMode::Storage => SelectionMode::DB,
-                        SelectionMode::DB => SelectionMode::Storage,
-                    }
+                    self.cycle_through_columns(true);
                 }
                 _ => {}
             }

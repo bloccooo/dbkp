@@ -345,14 +345,6 @@ impl RestoreModel {
 
                 let db_bkp = DbBkp::new(database_connection, storage_provider);
 
-                // let error_view = ErrorView::new(ErrorModel::new(
-                //     sender.clone(),
-                //     Some("Backup Failed".to_string()),
-                //     "hehehe".into(),
-                // ));
-                // let _ = sender.send(Event::View(Box::new(error_view)));
-                // return;
-
                 match db_bkp
                     .restore(RestoreOptions {
                         name: backup_id,
