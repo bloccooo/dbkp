@@ -3,10 +3,10 @@
 set -e
 
 # Configuration
-VERSION="4.0.2"  # Update this with your latest version
+VERSION="4.0.5"  # Update this with your latest version
 BINARY_NAME="dbkp"
 INSTALL_DIR="/usr/local/bin"
-GITHUB_REPO="vpr-group/dbkp"  # Updated with your actual repo
+GITHUB_REPO="bloccooo/dbkp"  # Updated with your actual repo
 
 # Parse command line arguments
 INSTALL_FROM_SOURCE=false
