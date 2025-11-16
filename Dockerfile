@@ -1,96 +1,59 @@
-# Build stage
+# Multi-stage build for dbkp CLI
+# Stage 1: Build
 FROM rust:latest AS builder
 
 # Install musl target for static linking
 RUN rustup target add x86_64-unknown-linux-musl
 RUN apt-get update && apt-get install -y \
-	musl-tools \
-	musl-dev \
-	&& rm -rf /var/lib/apt/lists/*
+    pkg-config \
+    musl-tools \
+    musl-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
-WORKDIR /build
+WORKDIR /app
 
-# Copy workspace files first for better caching
+# Copy workspace files
 COPY Cargo.toml Cargo.lock ./
-COPY core/Cargo.toml ./core/
-COPY cli/Cargo.toml ./cli/
-
-# Create dummy source files to cache dependencies
-RUN mkdir -p core/src cli/src && \
-	echo "fn main() {}" > cli/src/main.rs && \
-	echo "" > core/src/lib.rs
-
-# Build dependencies (this layer will be cached if Cargo files don't change)
-RUN cargo build --release --target x86_64-unknown-linux-musl --features vendored-openssl --bin dbkp || true
-
-# Copy actual source code
 COPY core ./core
 COPY cli ./cli
 
-# Build the binary with vendored-openssl for static linking
-RUN cargo build --release --target x86_64-unknown-linux-musl --features vendored-openssl --bin dbkp
+# Build the release binary with musl for static linking
+RUN cd cli && cargo build --release --target x86_64-unknown-linux-musl --features vendored-openssl
 
-# Runtime stage
-FROM ubuntu:22.04
+# Stage 2: Runtime
+# Use Debian instead of Alpine because downloaded PostgreSQL/MySQL binaries are glibc-based
+# The dbkp binary itself is statically linked with musl, so it will work on Debian
+FROM debian:bookworm-slim
 
-# Set environment variables
-ENV DEBIAN_FRONTEND=noninteractive
-ENV VPRS3BKP_VERSION=latest
-
-# Install minimal runtime dependencies
-# Note: PostgreSQL and MySQL clients are automatically installed by dbkp when needed
+# Install runtime dependencies:
+# - ca-certificates: for HTTPS connections (needed to download database client tools)
+# - openssh-client: for SSH tunnel support (optional)
+# - libpq5: PostgreSQL client library (needed by downloaded pg_dump binaries)
+# Note: Database client tools (pg_dump, mysqldump) are automatically downloaded by dbkp
 RUN apt-get update && apt-get install -y \
-	ca-certificates \
-	&& rm -rf /var/lib/apt/lists/*
-
-# Copy the binary from builder stage
-COPY --from=builder /build/target/x86_64-unknown-linux-musl/release/dbkp /usr/local/bin/dbkp
-RUN chmod +x /usr/local/bin/dbkp
-
-# Verify installation
-RUN /usr/local/bin/dbkp --version && echo "✅ dbkp working"
+    ca-certificates \
+    openssh-client \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user for security
-RUN useradd -r -u 1001 -g root backup-user -m -d /home/backup-user
+RUN useradd -m -u 1000 dbkp && \
+    mkdir -p /backups /home/dbkp/.cache && \
+    chown -R dbkp:dbkp /backups /home/dbkp/.cache
 
-# Create directories for backups and cache
-RUN mkdir -p /backups /backups/.cache /home/backup-user/.cache && \
-	chown -R backup-user:root /backups /home/backup-user && \
-	chmod -R 755 /home/backup-user /backups
+# Copy the binary from builder
+# Note: musl builds go to target/x86_64-unknown-linux-musl/release/
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/dbkp /usr/local/bin/dbkp
 
-# Copy and make entrypoint script executable
-COPY entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh && chown backup-user:root /usr/local/bin/entrypoint.sh
+# Set the binary as executable
+RUN chmod +x /usr/local/bin/dbkp
+
+# Switch to non-root user
+USER dbkp
 
 # Set working directory
 WORKDIR /backups
 
-# Switch to non-root user
-USER backup-user
-
-# Default environment variables (can be overridden)
-ENV DATABASE_TYPE=postgresql
-ENV DATABASE=""
-ENV HOST=localhost
-ENV PORT=5432
-ENV USERNAME=""
-ENV PASSWORD=""
-ENV STORAGE_TYPE=s3
-ENV LOCATION=""
-ENV BUCKET=""
-ENV REGION=us-east-1
-ENV ENDPOINT=""
-ENV ACCESS_KEY=""
-ENV SECRET_KEY=""
-ENV BACKUP_NAME=""
-ENV FORMAT=custom
-ENV COMPRESS=true
-ENV VERBOSE=false
-# Set cache directory to a writable location
-ENV XDG_CACHE_HOME=/backups/.cache
-ENV HOME=/home/backup-user
-
 # Default command
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-CMD ["backup"]
+ENTRYPOINT ["/usr/local/bin/dbkp"]

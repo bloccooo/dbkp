@@ -1,0 +1,111 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup-s3
+  namespace: test-namespace
+  labels:
+    app: postgres-backup-s3
+spec:
+  schedule: "0 2 * * *" # Daily at 2 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          imagePullSecrets:
+            - name: github-registry
+          containers:
+            - name: dbkp-backup
+              # Update this to your registry after pushing the image
+              # For local testing, you can use: image: dbkp:latest
+              image: ghcr.io/bloccooo/dbkp/dbkp:latest
+              # Since ENTRYPOINT is set to /usr/local/bin/dbkp, we can use a simple command
+              # Note: Some parameters can be read from env vars (PGPASSWORD, S3_ACCESS_KEY, etc.)
+              # but we'll pass them explicitly for clarity
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  dbkp backup \
+                    --database-type postgresql \
+                    --database "$DB_NAME" \
+                    --host "$DB_HOST" \
+                    --port "$DB_PORT" \
+                    --username "$DB_USER" \
+                    --password "$DB_PASSWORD" \
+                    --storage-type s3 \
+                    --bucket "$S3_BUCKET" \
+                    --endpoint "$S3_ENDPOINT" \
+                    --access-key "$S3_ACCESS_KEY" \
+                    --secret-key "$S3_SECRET_KEY" \
+                    --region "$S3_REGION" \
+                    --location invoices-backups
+              env:
+                - name: DB_HOST
+                  value: "postgres-service"
+                - name: DB_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: shared-secret
+                      key: postgres-user
+                - name: DB_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: shared-secret
+                      key: postgres-password
+                # Alternative: dbkp can read password from PGPASSWORD env var
+                # - name: PGPASSWORD
+                #   valueFrom:
+                #     secretKeyRef:
+                #       name: shared-secret
+                #       key: postgres-password
+                - name: DB_NAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: shared-secret
+                      key: postgres-db
+                - name: DB_PORT
+                  valueFrom:
+                    secretKeyRef:
+                      name: shared-secret
+                      key: postgres-port
+                - name: S3_BUCKET
+                  valueFrom:
+                    secretKeyRef:
+                      name: shared-secret
+                      key: s3-bucket
+                - name: S3_ENDPOINT
+                  valueFrom:
+                    secretKeyRef:
+                      name: shared-secret
+                      key: s3-endpoint
+                - name: S3_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: shared-secret
+                      key: s3-access-key
+                - name: S3_SECRET_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: shared-secret
+                      key: s3-secret-key
+                - name: S3_REGION
+                  valueFrom:
+                    secretKeyRef:
+                      name: shared-secret
+                      key: s3-region
+              resources:
+                requests:
+                  memory: "256Mi"
+                  cpu: "50m"
+                limits:
+                  memory: "512Mi" # Increased for downloading PostgreSQL tools on first run
+                  cpu: "200m" # Increased for initial setup
+              # Optional: Add volume for caching downloaded database tools
+              # This speeds up subsequent runs by avoiding re-downloads
+              # volumeMounts:
+              #   - name: dbkp-cache
+              #     mountPath: /home/dbkp/.cache
+          # volumes:
+          #   - name: dbkp-cache
+          #     emptyDir: {}
