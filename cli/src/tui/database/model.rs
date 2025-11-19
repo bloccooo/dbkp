@@ -1,9 +1,9 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use crossterm::event::{Event as CrosstermEvent, KeyCode};
 use dbkp_core::databases::{ConnectionType, DatabaseConfig};
 use tokio::sync::mpsc;
-use tui_input::{backend::crossterm::EventHandler, Input};
+use tui_input::{Input, backend::crossterm::EventHandler};
 
 use crate::tui::{
     configs::Configs,
@@ -28,7 +28,6 @@ pub enum CurrentInput {
 #[derive(Clone, Debug)]
 pub struct DatabaseModel {
     pub event_sender: mpsc::UnboundedSender<Event>,
-    pub exit: bool,
     pub current_input: CurrentInput,
     pub type_input: Input,
     pub name_input: Input,
@@ -43,7 +42,6 @@ impl DatabaseModel {
     pub fn new(event_sender: mpsc::UnboundedSender<Event>) -> Result<DatabaseModel> {
         let database_model = DatabaseModel {
             event_sender,
-            exit: false,
             type_input: Input::new("postgresql".to_string()),
             name_input: Input::new("".to_string()),
             database_input: Input::new("".to_string()),
@@ -57,7 +55,7 @@ impl DatabaseModel {
         Ok(database_model)
     }
 
-    pub fn next_input(&mut self) {
+    pub fn next_input(&mut self) -> Result<Option<Box<dyn View>>> {
         self.current_input = match self.current_input {
             CurrentInput::Name => CurrentInput::Type,
             CurrentInput::Type => CurrentInput::Database,
@@ -67,9 +65,11 @@ impl DatabaseModel {
             CurrentInput::Username => CurrentInput::Password,
             CurrentInput::Password => CurrentInput::Name,
         };
+
+        Ok(self.self_view())
     }
 
-    pub fn previous_input(&mut self) {
+    pub fn previous_input(&mut self) -> Result<Option<Box<dyn View>>> {
         self.current_input = match self.current_input {
             CurrentInput::Name => CurrentInput::Password,
             CurrentInput::Type => CurrentInput::Name,
@@ -79,6 +79,8 @@ impl DatabaseModel {
             CurrentInput::Username => CurrentInput::Port,
             CurrentInput::Password => CurrentInput::Username,
         };
+
+        Ok(self.self_view())
     }
 
     fn input_filled(&self) -> bool {
@@ -145,20 +147,20 @@ impl DatabaseModel {
 
         Ok(())
     }
+
+    fn exit(&self) -> Result<Option<Box<dyn View>>> {
+        Ok(Some(Box::new(HomeView::new(HomeModel::new(
+            self.event_sender.clone(),
+        )?))))
+    }
+
+    fn self_view(&self) -> Option<Box<dyn View>> {
+        Some(Box::new(DatabaseView::new(self.clone())))
+    }
 }
 
 #[async_trait]
 impl Model for DatabaseModel {
-    fn get_next_view(&mut self) -> Result<Option<Box<dyn View>>> {
-        if self.exit {
-            return Ok(Some(Box::new(HomeView::new(HomeModel::new(
-                self.event_sender.clone(),
-            )?))));
-        }
-
-        return Ok(Some(Box::new(DatabaseView::new(self.clone()))));
-    }
-
     async fn handle_event(&mut self, event: &CrosstermEvent) -> Result<()> {
         match self.current_input {
             CurrentInput::Type => {
@@ -185,31 +187,27 @@ impl Model for DatabaseModel {
         };
 
         if let CrosstermEvent::Key(key) = event {
-            match key.code {
-                KeyCode::Esc | KeyCode::Left => {
-                    self.exit = true;
-                }
-                KeyCode::Down => {
-                    self.next_input();
-                }
-                KeyCode::Tab => {
-                    self.next_input();
-                }
-                KeyCode::Up => {
-                    self.previous_input();
-                }
+            let next_view: Option<Box<dyn View>> = match key.code {
+                KeyCode::Esc | KeyCode::Left => self.exit()?,
+                KeyCode::Down => self.next_input()?,
+                KeyCode::Tab => self.next_input()?,
+                KeyCode::Up => self.previous_input()?,
                 KeyCode::Enter => {
                     if self.input_filled() {
                         self.save()?;
-                        self.exit = true;
+                        self.exit()?
                     } else {
-                        self.next_input();
+                        self.next_input()?
                     }
                 }
-                _ => {}
-            }
+                _ => self.self_view(),
+            };
+
+            let _ = self.event_sender.send(Event::View(next_view));
+            return Ok(());
         }
 
+        let _ = self.event_sender.send(Event::View(self.self_view()));
         Ok(())
     }
 }

@@ -1,12 +1,12 @@
 use std::time::Duration;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use crossterm::event::{Event as CrosstermEvent, KeyCode};
 use dbkp_core::{
+    DbBkp, RestoreOptions,
     databases::DatabaseConnection,
     storage::provider::{StorageConfig, StorageProvider},
-    DbBkp, RestoreOptions,
 };
 use tokio::sync::mpsc;
 
@@ -29,7 +29,6 @@ pub enum SelectionMode {
 
 #[derive(Clone, Debug)]
 pub struct RestoreModel {
-    pub exit: bool,
     pub event_sender: mpsc::UnboundedSender<Event>,
     pub in_progress: bool,
     pub loading_backups: bool,
@@ -42,6 +41,7 @@ pub struct RestoreModel {
     pub selected_storage_id: Option<String>,
     pub selected_database_id: Option<String>,
     pub selected_backup_id: Option<String>,
+    pub drop_database: Option<bool>,
 }
 
 impl RestoreModel {
@@ -62,7 +62,6 @@ impl RestoreModel {
 
             if let Some(database_config) = first_database_config {
                 return Ok(RestoreModel {
-                    exit: false,
                     event_sender,
                     in_progress: false,
                     loading_backups: false,
@@ -75,6 +74,7 @@ impl RestoreModel {
                     selected_storage_id: None,
                     selected_database_id: None,
                     selected_backup_id: None,
+                    drop_database: None,
                 });
             }
         }
@@ -82,7 +82,7 @@ impl RestoreModel {
         Err(anyhow!("Unable to find existing configs"))
     }
 
-    fn highlight_next(&mut self) {
+    fn highlight_next(&mut self) -> Result<Option<Box<dyn View>>> {
         let storage_configs = self.configs.get_storage_configs();
         let database_configs = self.configs.get_database_configs();
 
@@ -126,9 +126,11 @@ impl RestoreModel {
                 }
             }
         }
+
+        Ok(self.self_view())
     }
 
-    fn highlight_previous(&mut self) {
+    fn highlight_previous(&mut self) -> Result<Option<Box<dyn View>>> {
         let storage_configs = self.configs.get_storage_configs();
         let database_configs = self.configs.get_database_configs();
 
@@ -183,9 +185,11 @@ impl RestoreModel {
                 }
             }
         }
+
+        Ok(self.self_view())
     }
 
-    fn cycle_through_columns(&mut self, direction: bool) {
+    fn cycle_through_columns(&mut self, direction: bool) -> Result<Option<Box<dyn View>>> {
         match self.selection_mode {
             SelectionMode::Storage => {
                 self.selection_mode = if direction {
@@ -209,6 +213,8 @@ impl RestoreModel {
                 }
             }
         }
+
+        Ok(self.self_view())
     }
 
     fn load_backups(&mut self) -> Result<()> {
@@ -235,7 +241,7 @@ impl RestoreModel {
                             Some("Storage Provider Error".to_string()),
                             e.to_string(),
                         ));
-                        let _ = sender.send(Event::View(Box::new(error_view)));
+                        let _ = sender.send(Event::View(Some(Box::new(error_view))));
                         return;
                     }
                 };
@@ -248,7 +254,7 @@ impl RestoreModel {
                             Some("Fail to load entries".to_string()),
                             e.to_string(),
                         ));
-                        let _ = sender.send(Event::View(Box::new(error_view)));
+                        let _ = sender.send(Event::View(Some(Box::new(error_view))));
                         return;
                     }
                 };
@@ -261,14 +267,14 @@ impl RestoreModel {
                 restore_model.highlighted_backup_id = backups.first().cloned();
                 restore_model.backups = backups;
                 restore_model.selection_mode = SelectionMode::Backup;
-                let _ = sender.send(Event::View(Box::new(RestoreView::new(restore_model))));
+                let _ = sender.send(Event::View(Some(Box::new(RestoreView::new(restore_model)))));
             });
         };
 
         self.loading_backups = true;
         let _ = self
             .event_sender
-            .send(Event::View(Box::new(RestoreView::new(self.clone()))));
+            .send(Event::View(Some(Box::new(RestoreView::new(self.clone())))));
 
         Ok(())
     }
@@ -300,6 +306,7 @@ impl RestoreModel {
             let database_config = database_config.unwrap().clone();
             let storage_config = storage_config.unwrap().clone();
             let backup_id = self.selected_backup_id.clone().unwrap();
+            let drop_database = self.drop_database.clone();
 
             tokio::spawn(async move {
                 let database_connection_result = tokio::time::timeout(
@@ -316,7 +323,7 @@ impl RestoreModel {
                             Some("Database Connection Error".to_string()),
                             e.to_string(),
                         ));
-                        let _ = sender.send(Event::View(Box::new(error_view)));
+                        let _ = sender.send(Event::View(Some(Box::new(error_view))));
                         return;
                     }
                     Err(_) => {
@@ -325,7 +332,7 @@ impl RestoreModel {
                             Some("Database Connection Timeout".to_string()),
                             "Timeout".to_string(),
                         ));
-                        let _ = sender.send(Event::View(Box::new(error_view)));
+                        let _ = sender.send(Event::View(Some(Box::new(error_view))));
                         return;
                     }
                 };
@@ -338,7 +345,7 @@ impl RestoreModel {
                             Some("Storage Provider Error".to_string()),
                             e.to_string(),
                         ));
-                        let _ = sender.send(Event::View(Box::new(error_view)));
+                        let _ = sender.send(Event::View(Some(Box::new(error_view))));
                         return;
                     }
                 };
@@ -349,12 +356,12 @@ impl RestoreModel {
                     .restore(RestoreOptions {
                         name: backup_id,
                         compression_format: None,
-                        drop_database_first: Some(true),
+                        drop_database_first: drop_database,
                     })
                     .await
                 {
                     Ok(_) => {
-                        let _ = sender.send(Event::View(Box::new(home_view))).unwrap();
+                        let _ = sender.send(Event::View(Some(Box::new(home_view)))).unwrap();
                     }
                     Err(e) => {
                         let error_view = ErrorView::new(ErrorModel::new(
@@ -362,7 +369,7 @@ impl RestoreModel {
                             Some("Restore Failed".to_string()),
                             e.to_string(),
                         ));
-                        let _ = sender.send(Event::View(Box::new(error_view)));
+                        let _ = sender.send(Event::View(Some(Box::new(error_view))));
                     }
                 };
             });
@@ -371,7 +378,7 @@ impl RestoreModel {
         Ok(())
     }
 
-    fn try_and_restore(&mut self) -> Result<()> {
+    fn try_and_restore(&mut self) -> Result<Option<Box<dyn View>>> {
         match self.selection_mode {
             SelectionMode::Storage => {
                 self.selected_storage_id = Some(self.highlight_storage_id.clone());
@@ -394,44 +401,45 @@ impl RestoreModel {
             model.in_progress = true;
             let _ = self
                 .event_sender
-                .send(Event::View(Box::new(RestoreView::new(model))));
+                .send(Event::View(Some(Box::new(RestoreView::new(model)))));
         }
 
-        Ok(())
+        Ok(self.self_view())
     }
 
-    fn exit(&mut self) {
-        self.exit = true;
+    fn self_view(&self) -> Option<Box<dyn View>> {
+        Some(Box::new(RestoreView::new(self.clone())))
+    }
+
+    fn exit(&mut self) -> Result<Option<Box<dyn View>>> {
+        Ok(Some(Box::new(HomeView::new(HomeModel::new(
+            self.event_sender.clone(),
+        )?))))
     }
 }
 
 #[async_trait]
 impl Model for RestoreModel {
-    fn get_next_view(&mut self) -> Result<Option<Box<dyn View>>> {
-        if self.exit {
-            return Ok(Some(Box::new(HomeView::new(HomeModel::new(
-                self.event_sender.clone(),
-            )?))));
-        }
-
-        Ok(Some(Box::new(RestoreView::new(self.clone()))))
-    }
-
     async fn handle_event(&mut self, event: &CrosstermEvent) -> Result<()> {
         if let CrosstermEvent::Key(key) = event {
-            match key.code {
-                KeyCode::Esc => self.exit(),
-                KeyCode::Down => self.highlight_next(),
-                KeyCode::Up => self.highlight_previous(),
-                KeyCode::Left => self.cycle_through_columns(false),
+            let next_view = match key.code {
+                KeyCode::Esc => self.exit()?,
+                KeyCode::Down => self.highlight_next()?,
+                KeyCode::Up => self.highlight_previous()?,
+                KeyCode::Left => self.cycle_through_columns(false)?,
                 KeyCode::Right => {
                     self.try_and_restore()?;
-                    self.cycle_through_columns(true)
+                    self.cycle_through_columns(true)?
                 }
                 KeyCode::Enter => self.try_and_restore()?,
-                _ => {}
-            }
+                _ => self.self_view(),
+            };
+
+            let _ = self.event_sender.send(Event::View(next_view));
+            return Ok(());
         }
+
+        let _ = self.event_sender.send(Event::View(self.self_view()));
         Ok(())
     }
 }

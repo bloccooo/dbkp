@@ -6,12 +6,12 @@ use crate::tui::{
     storage::view::{LocalStorageView, S3StorageView, StorageView},
     view::View,
 };
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use crossterm::event::{Event as CrosstermEvent, KeyCode};
 use dbkp_core::storage::provider::{LocalStorageConfig, S3StorageConfig, StorageConfig};
 use tokio::sync::mpsc;
-use tui_input::{backend::crossterm::EventHandler, Input};
+use tui_input::{Input, backend::crossterm::EventHandler};
 
 #[derive(Clone, Debug)]
 pub enum CurrentInput {
@@ -28,7 +28,6 @@ pub enum CurrentInput {
 #[derive(Clone, Debug)]
 pub struct StorageModel {
     pub event_sender: mpsc::UnboundedSender<Event>,
-    pub exit: bool,
     pub current_input: CurrentInput,
     pub storage_type_options: Vec<String>,
     pub highlighted_option_index: i8,
@@ -47,7 +46,6 @@ impl StorageModel {
     pub fn new(event_sender: mpsc::UnboundedSender<Event>) -> Self {
         StorageModel {
             event_sender,
-            exit: false,
             current_input: CurrentInput::ConfigName,
             storage_type_options: vec!["S3".to_string(), "Local".to_string()],
             highlighted_option_index: 0,
@@ -63,23 +61,27 @@ impl StorageModel {
         }
     }
 
-    pub fn go_next(&mut self) {
+    pub fn go_next(&mut self) -> Result<Option<Box<dyn View>>> {
         self.highlighted_option_index = self.highlighted_option_index + 1;
 
         if self.highlighted_option_index >= self.storage_type_options.len() as i8 {
             self.highlighted_option_index = 0;
         }
+
+        Ok(self.self_view())
     }
 
-    pub fn go_previous(&mut self) {
+    pub fn go_previous(&mut self) -> Result<Option<Box<dyn View>>> {
         self.highlighted_option_index = self.highlighted_option_index - 1;
 
         if self.highlighted_option_index < 0 {
             self.highlighted_option_index = self.storage_type_options.len() as i8 - 1;
         }
+
+        Ok(self.self_view())
     }
 
-    pub fn next_input(&mut self) {
+    pub fn next_input(&mut self) -> Result<Option<Box<dyn View>>> {
         if let Some(storage_config) = &self.current_storage_config {
             self.current_input = match storage_config {
                 StorageConfig::Local(_) => match self.current_input {
@@ -99,9 +101,11 @@ impl StorageModel {
                 },
             };
         }
+
+        Ok(self.self_view())
     }
 
-    pub fn previous_input(&mut self) {
+    pub fn previous_input(&mut self) -> Result<Option<Box<dyn View>>> {
         if let Some(storage_config) = &self.current_storage_config {
             self.current_input = match storage_config {
                 StorageConfig::Local(_) => match self.current_input {
@@ -121,6 +125,8 @@ impl StorageModel {
                 },
             };
         }
+
+        Ok(self.self_view())
     }
 
     fn is_config_filled(&self) -> bool {
@@ -228,29 +234,21 @@ impl StorageModel {
 
         Ok(())
     }
+
+    fn self_view(&self) -> Option<Box<dyn View>> {
+        Some(Box::new(StorageView::new(self.clone())))
+    }
+
+    fn exit(&mut self) -> Result<Option<Box<dyn View>>> {
+        self.current_storage_config = None;
+        Ok(Some(Box::new(HomeView::new(HomeModel::new(
+            self.event_sender.clone(),
+        )?))))
+    }
 }
 
 #[async_trait]
 impl Model for StorageModel {
-    fn get_next_view(&mut self) -> Result<Option<Box<dyn View>>> {
-        if self.exit {
-            return Ok(Some(Box::new(HomeView::new(HomeModel::new(
-                self.event_sender.clone(),
-            )?))));
-        } else if let Some(config) = &self.current_storage_config {
-            match config {
-                StorageConfig::Local(_) => {
-                    return Ok(Some(Box::new(LocalStorageView::new(self.clone()))));
-                }
-                StorageConfig::S3(_) => {
-                    return Ok(Some(Box::new(S3StorageView::new(self.clone()))));
-                }
-            }
-        }
-
-        return Ok(Some(Box::new(StorageView::new(self.clone()))));
-    }
-
     async fn handle_event(&mut self, event: &CrosstermEvent) -> Result<()> {
         match self.current_input {
             CurrentInput::ConfigName => {
@@ -282,30 +280,31 @@ impl Model for StorageModel {
         self.update_current_config();
 
         if let CrosstermEvent::Key(key) = event {
-            if let Some(current_config) = &self.current_storage_config {
+            let next_view = if let Some(current_config) = &self.current_storage_config {
                 match current_config {
                     StorageConfig::Local(_) | StorageConfig::S3(_) => match key.code {
                         KeyCode::Esc | KeyCode::Left => {
-                            self.current_storage_config = None;
+                            let mut model = self.clone();
+                            model.current_storage_config = None;
+
+                            let view: Option<Box<dyn View>> =
+                                Some(Box::new(StorageView::new(model)));
+
+                            view
                         }
                         KeyCode::Enter => {
                             if self.is_config_filled() {
                                 self.validate_configs()?;
                                 self.save()?;
                                 self.current_storage_config = None;
-                                self.exit = true;
+                                self.exit()?
                             } else {
-                                self.next_input();
+                                self.next_input()?
                             }
                         }
-                        KeyCode::Down | KeyCode::Tab => {
-                            self.next_input();
-                        }
-                        KeyCode::Up => {
-                            self.previous_input();
-                        }
-
-                        _ => {}
+                        KeyCode::Down | KeyCode::Tab => self.next_input()?,
+                        KeyCode::Up => self.previous_input()?,
+                        _ => self.self_view(),
                     },
                 }
             } else {
@@ -314,18 +313,13 @@ impl Model for StorageModel {
                     .get(self.highlighted_option_index as usize)
                     .cloned();
 
-                match key.code {
-                    KeyCode::Esc | KeyCode::Left => {
-                        self.exit = true;
-                    }
-                    KeyCode::Down => {
-                        self.go_next();
-                    }
-                    KeyCode::Up => {
-                        self.go_previous();
-                    }
+                let next_view = match key.code {
+                    KeyCode::Esc | KeyCode::Left => self.exit()?,
+                    KeyCode::Down => self.go_next()?,
+                    KeyCode::Up => self.go_previous()?,
                     KeyCode::Enter | KeyCode::Right => {
-                        if let Some(option) = selected_option {
+                        let next_view: Option<Box<dyn View>> = if let Some(option) = selected_option
+                        {
                             if option == "Local" {
                                 self.current_storage_config =
                                     Some(StorageConfig::Local(LocalStorageConfig {
@@ -333,6 +327,8 @@ impl Model for StorageModel {
                                         location: "".into(),
                                         name: "".into(),
                                     }));
+
+                                Some(Box::new(LocalStorageView::new(self.clone())))
                             } else {
                                 let default_endpoint: String =
                                     "https://s3.pub1.infomaniak.cloud".into();
@@ -362,15 +358,27 @@ impl Model for StorageModel {
                                 self.s3_input_region = Input::new(default_region);
                                 self.input_config_name = Input::new(default_name);
                                 self.s3_input_location = Input::new(default_location);
+
+                                Some(Box::new(S3StorageView::new(self.clone())))
                             }
-                        }
+                        } else {
+                            self.exit()?
+                        };
+
+                        next_view
                     }
 
-                    _ => {}
-                }
-            }
+                    _ => self.self_view(),
+                };
+
+                next_view
+            };
+
+            let _ = self.event_sender.send(Event::View(next_view));
+            return Ok(());
         };
 
+        let _ = self.event_sender.send(Event::View(self.self_view()));
         Ok(())
     }
 }

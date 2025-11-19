@@ -13,7 +13,7 @@ const TICK_FPS: f64 = 10.0;
 pub enum Event {
     Tick,
     Crossterm(CrosstermEvent),
-    View(Box<dyn View>),
+    View(Option<Box<dyn View>>),
 }
 
 #[derive(Debug)]

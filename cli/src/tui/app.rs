@@ -1,5 +1,5 @@
 use anyhow::Result;
-use ratatui::{prelude::Backend, Terminal};
+use ratatui::{Terminal, prelude::Backend};
 
 use crate::tui::{
     error::{model::ErrorModel, view::ErrorView},
@@ -19,50 +19,19 @@ pub struct App {
 impl App {
     pub fn new() -> Result<App> {
         let events = EventHandler::new();
+
+        let initial_view = HomeView::new(HomeModel::new(events.sender.clone())?);
+        let _ = events
+            .sender
+            .send(Event::View(Some(Box::new(initial_view.clone()))));
+
         let app = App {
             running: true,
-            view: Box::new(HomeView::new(HomeModel::new(events.sender.clone())?)),
+            view: Box::new(initial_view),
             events,
         };
 
         Ok(app)
-    }
-
-    pub fn render_frame<B: Backend>(
-        &mut self,
-        mut model: Box<dyn Model>,
-        terminal: &mut Terminal<B>,
-    ) -> color_eyre::Result<bool> {
-        let mut result = false;
-
-        terminal.draw(|f| {
-            let view_error = match model.get_next_view() {
-                Ok(some_view) => match some_view {
-                    Some(view) => {
-                        self.view = view;
-                        self.view.render(f);
-                        result = true;
-                        None
-                    }
-                    None => {
-                        result = false;
-                        None
-                    }
-                },
-                Err(e) => Some(e),
-            };
-
-            if let Some(error) = view_error {
-                let error_view = ErrorView::new(ErrorModel::new(
-                    self.events.sender.clone(),
-                    Some("View Error".to_string()),
-                    error.to_string(),
-                ));
-                let _ = self.events.sender.send(Event::View(Box::new(error_view)));
-            }
-        })?;
-
-        Ok(result)
     }
 
     pub async fn run<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> color_eyre::Result<()> {
@@ -84,15 +53,28 @@ impl App {
                             Some("Event Error".to_string()),
                             error.to_string(),
                         ));
-                        let _ = self.events.sender.send(Event::View(Box::new(error_view)));
-                    } else {
-                        self.running = self.render_frame(model, terminal)?;
+                        let _ = self
+                            .events
+                            .sender
+                            .send(Event::View(Some(Box::new(error_view))));
                     }
                 }
                 Event::View(view) => {
-                    let model = view.get_model();
-                    self.view = view;
-                    self.running = self.render_frame(model, terminal)?;
+                    self.running = match view {
+                        Some(view) => {
+                            self.view = view;
+
+                            let running = match terminal.draw(|f| {
+                                self.view.render(f);
+                            }) {
+                                Ok(_) => true,
+                                Err(_) => false,
+                            };
+
+                            running
+                        }
+                        None => false,
+                    };
                 }
             };
         }

@@ -28,7 +28,6 @@ pub enum SelectionMode {
 
 #[derive(Clone, Debug)]
 pub struct BackupModel {
-    pub exit: bool,
     pub in_progress: bool,
     pub configs: Configs,
     pub selection_mode: SelectionMode,
@@ -56,7 +55,6 @@ impl BackupModel {
                 };
 
                 return Ok(BackupModel {
-                    exit: false,
                     in_progress: false,
                     selection_mode: SelectionMode::DB,
                     configs,
@@ -72,7 +70,7 @@ impl BackupModel {
         Err(anyhow!("Unable to find existing configs"))
     }
 
-    pub fn select_next(&mut self) {
+    pub fn select_next(&mut self) -> Result<Option<Box<dyn View>>> {
         let database_configs = self.configs.get_database_configs();
         let storage_configs = self.configs.get_storage_configs();
 
@@ -101,10 +99,12 @@ impl BackupModel {
                     StorageConfig::S3(config) => config.id.clone(),
                 }
             }
-        }
+        };
+
+        Ok(Some(Box::new(BackupView::new(self.clone()))))
     }
 
-    pub fn select_previous(&mut self) {
+    pub fn select_previous(&mut self) -> Result<Option<Box<dyn View>>> {
         let database_configs = self.configs.get_database_configs();
         let storage_configs = self.configs.get_storage_configs();
 
@@ -143,14 +143,18 @@ impl BackupModel {
                     StorageConfig::S3(config) => config.id.clone(),
                 }
             }
-        }
+        };
+
+        Ok(Some(Box::new(BackupView::new(self.clone()))))
     }
 
-    pub fn cycle_through_columns(&mut self, _direction: bool) {
+    pub fn cycle_through_columns(&mut self, _direction: bool) -> Result<Option<Box<dyn View>>> {
         self.selection_mode = match self.selection_mode {
             SelectionMode::Storage => SelectionMode::DB,
             SelectionMode::DB => SelectionMode::Storage,
-        }
+        };
+
+        Ok(Some(Box::new(BackupView::new(self.clone()))))
     }
 
     fn try_and_restore(&mut self) -> Result<()> {
@@ -229,7 +233,7 @@ impl BackupModel {
                         Some("Database Connection Error".to_string()),
                         e.to_string(),
                     ));
-                    let _ = sender.send(Event::View(Box::new(error_view)));
+                    let _ = sender.send(Event::View(Some(Box::new(error_view))));
                     return;
                 }
                 Err(_) => {
@@ -238,7 +242,7 @@ impl BackupModel {
                         Some("Database Connection Timeout".to_string()),
                         "Timeout".to_string(),
                     ));
-                    let _ = sender.send(Event::View(Box::new(error_view)));
+                    let _ = sender.send(Event::View(Some(Box::new(error_view))));
                     return;
                 }
             };
@@ -251,7 +255,7 @@ impl BackupModel {
                         Some("Storage Provider Error".to_string()),
                         e.to_string(),
                     ));
-                    let _ = sender.send(Event::View(Box::new(error_view)));
+                    let _ = sender.send(Event::View(Some(Box::new(error_view))));
                     return;
                 }
             };
@@ -260,7 +264,7 @@ impl BackupModel {
 
             match db_bkp.backup().await {
                 Ok(_) => {
-                    let _ = sender.send(Event::View(Box::new(home_view))).unwrap();
+                    let _ = sender.send(Event::View(Some(Box::new(home_view)))).unwrap();
                 }
                 Err(e) => {
                     let error_view = ErrorView::new(ErrorModel::new(
@@ -268,7 +272,7 @@ impl BackupModel {
                         Some("Backup Failed".to_string()),
                         e.to_string(),
                     ));
-                    let _ = sender.send(Event::View(Box::new(error_view)));
+                    let _ = sender.send(Event::View(Some(Box::new(error_view))));
                 }
             };
         });
@@ -279,40 +283,26 @@ impl BackupModel {
 
 #[async_trait]
 impl Model for BackupModel {
-    fn get_next_view(&mut self) -> Result<Option<Box<dyn View>>> {
-        if self.exit {
-            return Ok(Some(Box::new(HomeView::new(HomeModel::new(
-                self.event_sender.clone(),
-            )?))));
-        }
-
-        Ok(Some(Box::new(BackupView::new(self.clone()))))
-    }
-
     async fn handle_event(&mut self, event: &CrosstermEvent) -> Result<()> {
         if let CrosstermEvent::Key(key) = event {
-            match key.code {
-                KeyCode::Esc => {
-                    self.exit = true;
-                }
-                KeyCode::Down => {
-                    self.select_next();
-                }
-                KeyCode::Up => {
-                    self.select_previous();
-                }
+            let next_view: Option<Box<dyn View>> = match key.code {
+                KeyCode::Esc => Some(Box::new(HomeView::new(HomeModel::new(
+                    self.event_sender.clone(),
+                )?))),
+                KeyCode::Down => self.select_next()?,
+                KeyCode::Up => self.select_previous()?,
                 KeyCode::Enter | KeyCode::Right => {
                     self.try_and_restore()?;
-                    self.cycle_through_columns(true);
+                    self.cycle_through_columns(true)?
                 }
-                KeyCode::Left => {
-                    self.cycle_through_columns(true);
-                }
-                _ => {}
-            }
-        }
+                KeyCode::Left => self.cycle_through_columns(true)?,
+                _ => Some(Box::new(BackupView::new(BackupModel::new(
+                    self.event_sender.clone(),
+                )?))),
+            };
 
-        self.event_sender.send(Event::Tick)?;
+            let _ = self.event_sender.send(Event::View(next_view));
+        }
 
         Ok(())
     }

@@ -14,7 +14,6 @@ use crate::tui::{
 #[derive(Clone, Debug)]
 pub struct ErrorModel {
     pub event_sender: mpsc::UnboundedSender<Event>,
-    pub exit: bool,
     pub title: String,
     pub message: String,
 }
@@ -27,32 +26,33 @@ impl ErrorModel {
     ) -> Self {
         Self {
             event_sender,
-            exit: false,
             title: title.unwrap_or("Error".to_string()),
             message,
         }
+    }
+
+    fn exit(&self) -> Result<Option<Box<dyn View>>> {
+        Ok(Some(Box::new(HomeView::new(HomeModel::new(
+            self.event_sender.clone(),
+        )?))))
     }
 }
 
 #[async_trait]
 impl Model for ErrorModel {
-    fn get_next_view(&mut self) -> Result<Option<Box<dyn View>>> {
-        if self.exit {
-            let home_model = HomeModel::new(self.event_sender.clone())?;
-            return Ok(Some(Box::new(HomeView::new(home_model))));
-        }
-
-        Ok(Some(Box::new(ErrorView::new(self.clone()))))
-    }
-
     async fn handle_event(&mut self, event: &CrosstermEvent) -> Result<()> {
         if let CrosstermEvent::Key(key) = event {
-            match key.code {
-                _ => {
-                    self.exit = true;
-                }
-            }
+            let next_view = match key.code {
+                _ => self.exit()?,
+            };
+
+            let _ = self.event_sender.send(Event::View(next_view));
+            return Ok(());
         }
+
+        let _ = self
+            .event_sender
+            .send(Event::View(Some(Box::new(ErrorView::new(self.clone())))));
 
         Ok(())
     }

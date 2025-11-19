@@ -17,10 +17,8 @@ use crate::tui::{
 
 #[derive(Clone, Debug)]
 pub struct HomeModel {
-    pub exit: bool,
     pub options: Vec<String>,
     pub highlighted_option_index: i8,
-    pub selected_options_index: Option<i8>,
     pub event_sender: mpsc::UnboundedSender<Event>,
 }
 
@@ -46,9 +44,7 @@ impl HomeModel {
         };
 
         let home_model = HomeModel {
-            exit: false,
             options,
-            selected_options_index: None,
             highlighted_option_index: 0,
             event_sender,
         };
@@ -56,91 +52,87 @@ impl HomeModel {
         Ok(home_model)
     }
 
-    pub fn go_next(&mut self) {
+    fn self_view(&self) -> Option<Box<dyn View>> {
+        Some(Box::new(HomeView::new(self.clone())))
+    }
+
+    pub fn go_next(&mut self) -> Option<Box<dyn View>> {
         self.highlighted_option_index = self.highlighted_option_index + 1;
 
         if self.highlighted_option_index >= self.options.len() as i8 {
             self.highlighted_option_index = 0;
         }
+
+        self.self_view()
     }
 
-    pub fn go_previous(&mut self) {
+    pub fn go_previous(&mut self) -> Option<Box<dyn View>> {
         self.highlighted_option_index = self.highlighted_option_index - 1;
 
         if self.highlighted_option_index < 0 {
             self.highlighted_option_index = self.options.len() as i8 - 1;
         }
+
+        self.self_view()
+    }
+
+    pub fn select_option(&mut self) -> Result<Option<Box<dyn View>>> {
+        let option = self
+            .options
+            .get(self.highlighted_option_index as usize)
+            .cloned();
+
+        let view: Option<Box<dyn View>> = if let Some(option) = option {
+            if option == "Add DB Connection".to_string() {
+                Some(Box::new(DatabaseView::new(DatabaseModel::new(
+                    self.event_sender.clone(),
+                )?)))
+            } else if option == "Add Storage Provider" {
+                Some(Box::new(StorageView::new(StorageModel::new(
+                    self.event_sender.clone(),
+                ))))
+            } else if option == "Backup DB" {
+                Some(Box::new(BackupView::new(BackupModel::new(
+                    self.event_sender.clone(),
+                )?)))
+            } else if option == "Restore DB" {
+                Some(Box::new(RestoreView::new(RestoreModel::new(
+                    self.event_sender.clone(),
+                )?)))
+            } else if option == "Open Configs Folder" {
+                let _ = std::process::Command::new("open")
+                    .arg(Configs::load()?.config_path.parent().unwrap())
+                    .spawn();
+
+                None
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        Ok(view)
     }
 }
 
 #[async_trait]
 impl Model for HomeModel {
-    fn get_next_view(&mut self) -> Result<Option<Box<dyn View>>> {
-        if self.exit {
-            return Ok(None);
-        }
-
-        match self.selected_options_index {
-            Some(index) => {
-                let option = self.options.get(index as usize).cloned();
-
-                if let Some(option) = option {
-                    if option == "Add DB Connection".to_string() {
-                        return Ok(Some(Box::new(DatabaseView::new(DatabaseModel::new(
-                            self.event_sender.clone(),
-                        )?))));
-                    } else if option == "Add Storage Provider" {
-                        return Ok(Some(Box::new(StorageView::new(StorageModel::new(
-                            self.event_sender.clone(),
-                        )))));
-                    } else if option == "Backup DB" {
-                        let view = BackupView::new(BackupModel::new(self.event_sender.clone())?);
-                        return Ok(Some(Box::new(view)));
-                    } else if option == "Restore DB" {
-                        let view = RestoreView::new(RestoreModel::new(self.event_sender.clone())?);
-                        return Ok(Some(Box::new(view)));
-                    } else if option == "Open Configs Folder" {
-                        let _ = std::process::Command::new("open")
-                            .arg(Configs::load()?.config_path.parent().unwrap())
-                            .spawn();
-                        return Ok(None);
-                    }
-                }
-            }
-            None => {}
-        }
-
-        Ok(Some(Box::new(HomeView::new(self.clone()))))
-    }
-
     async fn handle_event(&mut self, event: &CrosstermEvent) -> Result<()> {
         if let CrosstermEvent::Key(key) = event {
-            match key.code {
-                KeyCode::Esc => {
-                    self.exit = true;
-                }
-                KeyCode::Down => {
-                    self.go_next();
-                }
-                KeyCode::Up => {
-                    self.go_previous();
-                }
-                KeyCode::Right => {
-                    let _ = self
-                        .selected_options_index
-                        .insert(self.highlighted_option_index);
-                }
-                KeyCode::Enter => {
-                    let _ = self
-                        .selected_options_index
-                        .insert(self.highlighted_option_index);
-                }
-                _ => {}
-            }
+            let next_view: Option<Box<dyn View>> = match key.code {
+                KeyCode::Esc => None,
+                KeyCode::Down => self.go_next(),
+                KeyCode::Up => self.go_previous(),
+                KeyCode::Right | KeyCode::Enter => self.select_option()?,
+                _ => self.self_view(),
+            };
+
+            let _ = self.event_sender.send(Event::View(next_view));
+            return Ok(());
         }
 
-        self.event_sender.send(Event::Tick)?;
-
+        let _ = self.event_sender.send(Event::View(self.self_view()));
         Ok(())
     }
 }
