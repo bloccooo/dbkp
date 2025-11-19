@@ -21,6 +21,12 @@ use crate::tui::{
 };
 
 #[derive(Clone, Debug)]
+pub enum RestoreStage {
+    Selection,
+    RestoreConfig,
+}
+
+#[derive(Clone, Debug)]
 pub enum SelectionMode {
     Storage,
     Backup,
@@ -34,6 +40,7 @@ pub struct RestoreModel {
     pub loading_backups: bool,
     pub configs: Configs,
     pub backups: Vec<String>,
+    pub restore_stage: RestoreStage,
     pub selection_mode: SelectionMode,
     pub highlight_storage_id: String,
     pub highlight_database_id: String,
@@ -41,7 +48,7 @@ pub struct RestoreModel {
     pub selected_storage_id: Option<String>,
     pub selected_database_id: Option<String>,
     pub selected_backup_id: Option<String>,
-    pub drop_database: Option<bool>,
+    pub drop_database: bool,
 }
 
 impl RestoreModel {
@@ -67,6 +74,7 @@ impl RestoreModel {
                     loading_backups: false,
                     configs,
                     backups: vec![],
+                    restore_stage: RestoreStage::Selection,
                     selection_mode: SelectionMode::Storage,
                     highlight_storage_id: storage_id,
                     highlight_database_id: database_config.id.clone(),
@@ -74,12 +82,31 @@ impl RestoreModel {
                     selected_storage_id: None,
                     selected_database_id: None,
                     selected_backup_id: None,
-                    drop_database: None,
+                    drop_database: false,
                 });
             }
         }
 
         Err(anyhow!("Unable to find existing configs"))
+    }
+
+    fn toggle_drop_database(&mut self) -> Result<Option<Box<dyn View>>> {
+        self.drop_database = !self.drop_database;
+        Ok(self.self_view())
+    }
+
+    fn handle_key_down(&mut self) -> Result<Option<Box<dyn View>>> {
+        match self.restore_stage {
+            RestoreStage::Selection => self.highlight_next(),
+            RestoreStage::RestoreConfig => self.toggle_drop_database(),
+        }
+    }
+
+    fn handle_key_up(&mut self) -> Result<Option<Box<dyn View>>> {
+        match self.restore_stage {
+            RestoreStage::Selection => self.highlight_previous(),
+            RestoreStage::RestoreConfig => self.toggle_drop_database(),
+        }
     }
 
     fn highlight_next(&mut self) -> Result<Option<Box<dyn View>>> {
@@ -356,7 +383,7 @@ impl RestoreModel {
                     .restore(RestoreOptions {
                         name: backup_id,
                         compression_format: None,
-                        drop_database_first: drop_database,
+                        drop_database_first: Some(drop_database),
                     })
                     .await
                 {
@@ -395,13 +422,10 @@ impl RestoreModel {
         if self.selected_storage_id.is_some()
             && self.selected_backup_id.is_some()
             && self.selected_database_id.is_some()
+            && matches!(self.restore_stage, RestoreStage::RestoreConfig)
         {
             self.restore()?;
-            let mut model = self.clone();
-            model.in_progress = true;
-            let _ = self
-                .event_sender
-                .send(Event::View(Some(Box::new(RestoreView::new(model)))));
+            self.in_progress = true;
         }
 
         Ok(self.self_view())
@@ -409,6 +433,51 @@ impl RestoreModel {
 
     fn self_view(&self) -> Option<Box<dyn View>> {
         Some(Box::new(RestoreView::new(self.clone())))
+    }
+
+    fn handle_key_esc(&mut self) -> Result<Option<Box<dyn View>>> {
+        match self.restore_stage {
+            RestoreStage::Selection => self.exit(),
+            RestoreStage::RestoreConfig => {
+                let mut model = self.clone();
+                model.restore_stage = RestoreStage::Selection;
+                Ok(Some(Box::new(RestoreView::new(model))))
+            }
+        }
+    }
+
+    fn handle_key_left(&mut self) -> Result<Option<Box<dyn View>>> {
+        match self.restore_stage {
+            RestoreStage::Selection => self.cycle_through_columns(false),
+            RestoreStage::RestoreConfig => {
+                let mut model = self.clone();
+                model.selected_backup_id = None;
+                model.selected_database_id = None;
+                model.selected_storage_id = None;
+                model.restore_stage = RestoreStage::Selection;
+                Ok(Some(Box::new(RestoreView::new(model))))
+            }
+        }
+    }
+
+    fn handle_key_select(&mut self) -> Result<Option<Box<dyn View>>> {
+        self.try_and_restore()?;
+
+        match self.restore_stage {
+            RestoreStage::Selection => {
+                if self.selected_storage_id.is_some()
+                    && self.selected_backup_id.is_some()
+                    && self.selected_database_id.is_some()
+                {
+                    let mut model = self.clone();
+                    model.restore_stage = RestoreStage::RestoreConfig;
+                    return Ok(Some(Box::new(RestoreView::new(model))));
+                }
+
+                self.cycle_through_columns(true)
+            }
+            RestoreStage::RestoreConfig => Ok(self.self_view()),
+        }
     }
 
     fn exit(&mut self) -> Result<Option<Box<dyn View>>> {
@@ -423,15 +492,11 @@ impl Model for RestoreModel {
     async fn handle_event(&mut self, event: &CrosstermEvent) -> Result<()> {
         if let CrosstermEvent::Key(key) = event {
             let next_view = match key.code {
-                KeyCode::Esc => self.exit()?,
-                KeyCode::Down => self.highlight_next()?,
-                KeyCode::Up => self.highlight_previous()?,
-                KeyCode::Left => self.cycle_through_columns(false)?,
-                KeyCode::Right => {
-                    self.try_and_restore()?;
-                    self.cycle_through_columns(true)?
-                }
-                KeyCode::Enter => self.try_and_restore()?,
+                KeyCode::Esc => self.handle_key_esc()?,
+                KeyCode::Down => self.handle_key_down()?,
+                KeyCode::Up => self.handle_key_up()?,
+                KeyCode::Left => self.handle_key_left()?,
+                KeyCode::Right | KeyCode::Enter => self.handle_key_select()?,
                 _ => self.self_view(),
             };
 
