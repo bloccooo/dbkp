@@ -1,6 +1,6 @@
 [package]
 name = "dbkp-core"
-version = "4.0.5"
+version = "4.1.0"
 edition = "2021"
 description = "Core functionality for S3 backup and restore"
 
