@@ -236,7 +236,17 @@ impl StorageModel {
     }
 
     fn self_view(&self) -> Option<Box<dyn View>> {
-        Some(Box::new(StorageView::new(self.clone())))
+        let model = self.clone();
+
+        let view: Option<Box<dyn View>> = match model.current_storage_config {
+            Some(storage_config) => match storage_config {
+                StorageConfig::S3(_) => Some(Box::new(S3StorageView::new(self.clone()))),
+                StorageConfig::Local(_) => Some(Box::new(LocalStorageView::new(self.clone()))),
+            },
+            None => Some(Box::new(StorageView::new(self.clone()))),
+        };
+
+        view
     }
 
     fn exit(&mut self) -> Result<Option<Box<dyn View>>> {
