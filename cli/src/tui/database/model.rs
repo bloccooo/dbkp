@@ -177,7 +177,7 @@ impl Model for DatabaseModel {
 
         if let CrosstermEvent::Key(key) = event {
             let next_view: Option<Box<dyn View>> = match key.code {
-                KeyCode::Esc | KeyCode::Left => self.exit()?,
+                KeyCode::Esc => self.exit()?,
                 KeyCode::Down => self.next_input()?,
                 KeyCode::Tab => self.next_input()?,
                 KeyCode::Up => self.previous_input()?,

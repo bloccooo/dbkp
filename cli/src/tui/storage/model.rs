@@ -280,7 +280,7 @@ impl Model for StorageModel {
             let next_view = if let Some(current_config) = &self.current_storage_config {
                 match current_config {
                     StorageConfig::Local(_) | StorageConfig::S3(_) => match key.code {
-                        KeyCode::Esc | KeyCode::Left => {
+                        KeyCode::Esc => {
                             let mut model = self.clone();
                             model.current_storage_config = None;
 
@@ -311,7 +311,7 @@ impl Model for StorageModel {
                     .cloned();
 
                 let next_view = match key.code {
-                    KeyCode::Esc | KeyCode::Left => self.exit()?,
+                    KeyCode::Esc => self.exit()?,
                     KeyCode::Down => self.go_next()?,
                     KeyCode::Up => self.go_previous()?,
                     KeyCode::Enter | KeyCode::Right => {
