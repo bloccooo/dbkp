@@ -259,33 +259,20 @@ impl StorageModel {
 
 #[async_trait]
 impl Model for StorageModel {
-    async fn handle_event(&mut self, event: &CrosstermEvent) -> Result<()> {
-        match self.current_input {
-            CurrentInput::ConfigName => {
-                self.input_config_name.handle_event(event);
-            }
-            CurrentInput::LocalLocation => {
-                self.local_input_location.handle_event(event);
-            }
-            CurrentInput::S3Location => {
-                self.s3_input_location.handle_event(event);
-            }
-            CurrentInput::S3Bucket => {
-                self.s3_input_bucket.handle_event(event);
-            }
-            CurrentInput::S3Region => {
-                self.s3_input_region.handle_event(event);
-            }
-            CurrentInput::S3Endpoint => {
-                self.s3_input_endpoint.handle_event(event);
-            }
-            CurrentInput::S3AccessKey => {
-                self.s3_input_access_key.handle_event(event);
-            }
-            CurrentInput::S3SecretKey => {
-                self.s3_input_secret_key.handle_event(event);
-            }
-        }
+    async fn handle_event(&mut self, event: &CrosstermEvent) -> Result<Option<Box<dyn View>>> {
+        // Get the current input and handle paste events (tui-input doesn't support paste)
+        let input = match self.current_input {
+            CurrentInput::ConfigName => &mut self.input_config_name,
+            CurrentInput::LocalLocation => &mut self.local_input_location,
+            CurrentInput::S3Location => &mut self.s3_input_location,
+            CurrentInput::S3Bucket => &mut self.s3_input_bucket,
+            CurrentInput::S3Region => &mut self.s3_input_region,
+            CurrentInput::S3Endpoint => &mut self.s3_input_endpoint,
+            CurrentInput::S3AccessKey => &mut self.s3_input_access_key,
+            CurrentInput::S3SecretKey => &mut self.s3_input_secret_key,
+        };
+
+        input.handle_event(event);
 
         self.update_current_config();
 
@@ -384,11 +371,9 @@ impl Model for StorageModel {
                 next_view
             };
 
-            let _ = self.event_sender.send(Event::View(next_view));
-            return Ok(());
+            return Ok(next_view);
         };
 
-        let _ = self.event_sender.send(Event::View(self.self_view()));
-        Ok(())
+        Ok(self.self_view())
     }
 }

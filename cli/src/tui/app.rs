@@ -1,4 +1,5 @@
 use anyhow::Result;
+use crossterm::event::Event as CrosstermEvent;
 use ratatui::{Terminal, prelude::Backend};
 
 use crate::tui::{
@@ -21,9 +22,6 @@ impl App {
         let events = EventHandler::new();
 
         let initial_view = HomeView::new(HomeModel::new(events.sender.clone())?);
-        let _ = events
-            .sender
-            .send(Event::View(Some(Box::new(initial_view.clone()))));
 
         let app = App {
             running: true,
@@ -35,50 +33,53 @@ impl App {
     }
 
     pub async fn run<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> color_eyre::Result<()> {
+        // Initial render
+        terminal.draw(|f| self.view.render(f))?;
+
         while self.running {
-            let mut model: Box<dyn Model> = self.view.get_model();
             match self.events.next().await? {
-                Event::Tick => {
-                    // self.running = self.render_frame(model, terminal)?;
-                }
+                Event::Tick => {}
                 Event::Crossterm(event) => {
-                    let error = match model.handle_event(&event).await {
-                        Ok(_) => None,
-                        Err(e) => Some(e),
-                    };
-
-                    if let Some(error) = error {
-                        let error_view = ErrorView::new(ErrorModel::new(
-                            self.events.sender.clone(),
-                            Some("Event Error".to_string()),
-                            error.to_string(),
-                        ));
-                        let _ = self
-                            .events
-                            .sender
-                            .send(Event::View(Some(Box::new(error_view))));
-                    }
+                    self.handle_crossterm_event(&event, terminal).await;
                 }
-                Event::View(view) => {
-                    self.running = match view {
-                        Some(view) => {
-                            self.view = view;
-
-                            let running = match terminal.draw(|f| {
-                                self.view.render(f);
-                            }) {
-                                Ok(_) => true,
-                                Err(_) => false,
-                            };
-
-                            running
-                        }
-                        None => false,
-                    };
+                Event::View(next_view) => {
+                    self.update_view(next_view, terminal);
                 }
             };
         }
 
         Ok(())
+    }
+
+    async fn handle_crossterm_event<B: Backend>(
+        &mut self,
+        event: &CrosstermEvent,
+        terminal: &mut Terminal<B>,
+    ) {
+        let mut model: Box<dyn Model> = self.view.get_model();
+
+        match model.handle_event(event).await {
+            Ok(next_view) => {
+                self.update_view(next_view, terminal);
+            }
+            Err(e) => {
+                let error_view = ErrorView::new(ErrorModel::new(
+                    self.events.sender.clone(),
+                    Some("Event Error".to_string()),
+                    e.to_string(),
+                ));
+                self.update_view(Some(Box::new(error_view)), terminal);
+            }
+        }
+    }
+
+    fn update_view<B: Backend>(&mut self, view: Option<Box<dyn View>>, terminal: &mut Terminal<B>) {
+        self.running = match view {
+            Some(view) => {
+                self.view = view;
+                terminal.draw(|f| self.view.render(f)).is_ok()
+            }
+            None => false,
+        };
     }
 }

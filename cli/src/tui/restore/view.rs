@@ -34,7 +34,7 @@ impl View for RestoreView {
     }
 
     fn render(&self, frame: &mut Frame) {
-        let databse_configs = self.model.configs.get_database_configs();
+        let database_configs = self.model.configs.get_database_configs();
 
         if self.model.in_progress {
             let block = Block::new()
@@ -42,7 +42,7 @@ impl View for RestoreView {
                 .borders(Borders::all())
                 .border_set(symbols::border::ROUNDED);
 
-            let selected_database_config = databse_configs
+            let selected_database_config = database_configs
                 .iter()
                 .find(|config| Some(config.id.clone()) == self.model.selected_database_id);
 

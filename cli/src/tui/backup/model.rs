@@ -283,7 +283,7 @@ impl BackupModel {
 
 #[async_trait]
 impl Model for BackupModel {
-    async fn handle_event(&mut self, event: &CrosstermEvent) -> Result<()> {
+    async fn handle_event(&mut self, event: &CrosstermEvent) -> Result<Option<Box<dyn View>>> {
         if let CrosstermEvent::Key(key) = event {
             let next_view: Option<Box<dyn View>> = match key.code {
                 KeyCode::Esc => Some(Box::new(HomeView::new(HomeModel::new(
@@ -301,9 +301,11 @@ impl Model for BackupModel {
                 )?))),
             };
 
-            let _ = self.event_sender.send(Event::View(next_view));
+            return Ok(next_view);
         }
 
-        Ok(())
+        Ok(Some(Box::new(BackupView::new(BackupModel::new(
+            self.event_sender.clone(),
+        )?))))
     }
 }

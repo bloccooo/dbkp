@@ -161,30 +161,19 @@ impl DatabaseModel {
 
 #[async_trait]
 impl Model for DatabaseModel {
-    async fn handle_event(&mut self, event: &CrosstermEvent) -> Result<()> {
-        match self.current_input {
-            CurrentInput::Type => {
-                self.type_input.handle_event(event);
-            }
-            CurrentInput::Name => {
-                self.name_input.handle_event(event);
-            }
-            CurrentInput::Database => {
-                self.database_input.handle_event(event);
-            }
-            CurrentInput::Host => {
-                self.host_input.handle_event(event);
-            }
-            CurrentInput::Port => {
-                self.port_input.handle_event(event);
-            }
-            CurrentInput::Username => {
-                self.username_input.handle_event(event);
-            }
-            CurrentInput::Password => {
-                self.password_input.handle_event(event);
-            }
+    async fn handle_event(&mut self, event: &CrosstermEvent) -> Result<Option<Box<dyn View>>> {
+        // Get the current input and handle paste events (tui-input doesn't support paste)
+        let input = match self.current_input {
+            CurrentInput::Type => &mut self.type_input,
+            CurrentInput::Name => &mut self.name_input,
+            CurrentInput::Database => &mut self.database_input,
+            CurrentInput::Host => &mut self.host_input,
+            CurrentInput::Port => &mut self.port_input,
+            CurrentInput::Username => &mut self.username_input,
+            CurrentInput::Password => &mut self.password_input,
         };
+
+        input.handle_event(event);
 
         if let CrosstermEvent::Key(key) = event {
             let next_view: Option<Box<dyn View>> = match key.code {
@@ -203,11 +192,9 @@ impl Model for DatabaseModel {
                 _ => self.self_view(),
             };
 
-            let _ = self.event_sender.send(Event::View(next_view));
-            return Ok(());
+            return Ok(next_view);
         }
 
-        let _ = self.event_sender.send(Event::View(self.self_view()));
-        Ok(())
+        Ok(self.self_view())
     }
 }

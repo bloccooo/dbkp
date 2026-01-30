@@ -489,7 +489,7 @@ impl RestoreModel {
 
 #[async_trait]
 impl Model for RestoreModel {
-    async fn handle_event(&mut self, event: &CrosstermEvent) -> Result<()> {
+    async fn handle_event(&mut self, event: &CrosstermEvent) -> Result<Option<Box<dyn View>>> {
         if let CrosstermEvent::Key(key) = event {
             let next_view = match key.code {
                 KeyCode::Esc => self.handle_key_esc()?,
@@ -500,11 +500,9 @@ impl Model for RestoreModel {
                 _ => self.self_view(),
             };
 
-            let _ = self.event_sender.send(Event::View(next_view));
-            return Ok(());
+            return Ok(next_view);
         }
 
-        let _ = self.event_sender.send(Event::View(self.self_view()));
-        Ok(())
+        Ok(self.self_view())
     }
 }

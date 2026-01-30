@@ -40,20 +40,15 @@ impl ErrorModel {
 
 #[async_trait]
 impl Model for ErrorModel {
-    async fn handle_event(&mut self, event: &CrosstermEvent) -> Result<()> {
+    async fn handle_event(&mut self, event: &CrosstermEvent) -> Result<Option<Box<dyn View>>> {
         if let CrosstermEvent::Key(key) = event {
             let next_view = match key.code {
                 _ => self.exit()?,
             };
 
-            let _ = self.event_sender.send(Event::View(next_view));
-            return Ok(());
+            return Ok(next_view);
         }
 
-        let _ = self
-            .event_sender
-            .send(Event::View(Some(Box::new(ErrorView::new(self.clone())))));
-
-        Ok(())
+        Ok(Some(Box::new(ErrorView::new(self.clone()))))
     }
 }
