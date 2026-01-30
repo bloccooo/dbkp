@@ -1,6 +1,6 @@
 use ratatui::{
-    layout::{Constraint, Direction, Layout},
     Frame,
+    layout::{Constraint, Direction, Layout},
 };
 
 use crate::tui::{
@@ -45,7 +45,7 @@ impl View for DatabaseView {
             .split(frame.area());
 
         let width = inputs_layout[0].width.max(3) - 3;
-        let scroll = self.database_model.type_input.visual_scroll(width as usize);
+        let scroll = self.database_model.name_input.visual_scroll(width as usize);
 
         render_input(
             frame,
@@ -57,6 +57,8 @@ impl View for DatabaseView {
             false,
         );
 
+        let scroll = self.database_model.type_input.visual_scroll(width as usize);
+
         render_input(
             frame,
             &self.database_model.type_input,
@@ -66,6 +68,11 @@ impl View for DatabaseView {
             scroll,
             false,
         );
+
+        let scroll = self
+            .database_model
+            .database_input
+            .visual_scroll(width as usize);
 
         render_input(
             frame,
@@ -77,6 +84,8 @@ impl View for DatabaseView {
             false,
         );
 
+        let scroll = self.database_model.host_input.visual_scroll(width as usize);
+
         render_input(
             frame,
             &self.database_model.host_input,
@@ -86,6 +95,8 @@ impl View for DatabaseView {
             scroll,
             false,
         );
+
+        let scroll = self.database_model.port_input.visual_scroll(width as usize);
 
         render_input(
             frame,
@@ -97,6 +108,11 @@ impl View for DatabaseView {
             false,
         );
 
+        let scroll = self
+            .database_model
+            .username_input
+            .visual_scroll(width as usize);
+
         render_input(
             frame,
             &self.database_model.username_input,
@@ -106,6 +122,11 @@ impl View for DatabaseView {
             scroll,
             false,
         );
+
+        let scroll = self
+            .database_model
+            .password_input
+            .visual_scroll(width as usize);
 
         render_input(
             frame,

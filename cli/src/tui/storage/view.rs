@@ -100,7 +100,7 @@ impl View for LocalStorageView {
         let width = inputs_layout[0].width.max(3) - 3;
         let scroll = self
             .storage_model
-            .local_input_location
+            .input_config_name
             .visual_scroll(width as usize);
 
         render_input(
@@ -112,6 +112,11 @@ impl View for LocalStorageView {
             scroll,
             false,
         );
+
+        let scroll = self
+            .storage_model
+            .local_input_location
+            .visual_scroll(width as usize);
 
         render_input(
             frame,
@@ -165,7 +170,7 @@ impl View for S3StorageView {
         let width = inputs_layout[0].width.max(3) - 3;
         let scroll = self
             .storage_model
-            .s3_input_location
+            .input_config_name
             .visual_scroll(width as usize);
 
         render_input(
@@ -178,6 +183,11 @@ impl View for S3StorageView {
             false,
         );
 
+        let scroll = self
+            .storage_model
+            .s3_input_location
+            .visual_scroll(width as usize);
+
         render_input(
             frame,
             &self.storage_model.s3_input_location,
@@ -187,6 +197,11 @@ impl View for S3StorageView {
             scroll,
             false,
         );
+
+        let scroll = self
+            .storage_model
+            .s3_input_bucket
+            .visual_scroll(width as usize);
 
         render_input(
             frame,
@@ -198,6 +213,11 @@ impl View for S3StorageView {
             false,
         );
 
+        let scroll = self
+            .storage_model
+            .s3_input_region
+            .visual_scroll(width as usize);
+
         render_input(
             frame,
             &self.storage_model.s3_input_region,
@@ -207,6 +227,11 @@ impl View for S3StorageView {
             scroll,
             false,
         );
+
+        let scroll = self
+            .storage_model
+            .s3_input_endpoint
+            .visual_scroll(width as usize);
 
         render_input(
             frame,
@@ -218,6 +243,11 @@ impl View for S3StorageView {
             false,
         );
 
+        let scroll = self
+            .storage_model
+            .s3_input_access_key
+            .visual_scroll(width as usize);
+
         render_input(
             frame,
             &self.storage_model.s3_input_access_key,
@@ -227,6 +257,11 @@ impl View for S3StorageView {
             scroll,
             false,
         );
+
+        let scroll = self
+            .storage_model
+            .s3_input_secret_key
+            .visual_scroll(width as usize);
 
         render_input(
             frame,
