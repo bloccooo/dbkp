@@ -2,7 +2,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use ratatui::{
     Frame,
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::Rect,
     style::{Color, Style},
     symbols,
     widgets::{Block, Borders, List, ListItem as RatatuiListItem, ListState},
@@ -37,12 +37,7 @@ pub struct InputItem<'a> {
 /// ─ Location
 /// > /path/to/backup
 /// ```
-pub fn render_input_form(
-    frame: &mut Frame,
-    title: &str,
-    items: Vec<InputItem>,
-    area: Rect,
-) {
+pub fn render_input_form(frame: &mut Frame, title: &str, items: Vec<InputItem>, area: Rect) {
     let block = Block::new()
         .title(format!(" {} ", title))
         .title_style(Style::default().fg(Color::White))
@@ -125,28 +120,6 @@ pub fn render_input_form(
             ));
         }
     }
-}
-
-pub fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
-    // Cut the given rectangle into three vertical pieces
-    let popup_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage((100 - percent_y) / 2),
-            Constraint::Percentage(percent_y),
-            Constraint::Percentage((100 - percent_y) / 2),
-        ])
-        .split(r);
-
-    // Then cut the middle vertical piece into three width-wise pieces
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage((100 - percent_x) / 2),
-            Constraint::Percentage(percent_x),
-            Constraint::Percentage((100 - percent_x) / 2),
-        ])
-        .split(popup_layout[1])[1] // Return the middle chunk
 }
 
 pub struct ListItem {
