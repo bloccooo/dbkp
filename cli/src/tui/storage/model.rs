@@ -4,6 +4,7 @@ use crate::tui::{
     home::{model::HomeModel, view::HomeView},
     model::Model,
     storage::view::{LocalStorageView, S3StorageView, StorageView},
+    success::{model::SuccessModel, view::SuccessView},
     view::View,
 };
 use anyhow::{Result, anyhow};
@@ -295,7 +296,12 @@ impl Model for StorageModel {
                                 self.validate_configs()?;
                                 self.save()?;
                                 self.current_storage_config = None;
-                                self.exit()?
+                                let success_model = SuccessModel::new(
+                                    self.event_sender.clone(),
+                                    "Storage configuration saved successfully.".to_string(),
+                                );
+                                let view: Box<dyn View> = Box::new(SuccessView::new(success_model));
+                                Some(view)
                             } else {
                                 self.next_input()?
                             }

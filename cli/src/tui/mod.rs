@@ -8,5 +8,6 @@ pub mod home;
 pub mod model;
 pub mod restore;
 pub mod storage;
+pub mod success;
 pub mod utils;
 pub mod view;

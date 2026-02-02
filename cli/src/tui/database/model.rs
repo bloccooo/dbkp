@@ -11,6 +11,7 @@ use crate::tui::{
     event::Event,
     home::{model::HomeModel, view::HomeView},
     model::Model,
+    success::{model::SuccessModel, view::SuccessView},
     view::View,
 };
 
@@ -184,7 +185,11 @@ impl Model for DatabaseModel {
                 KeyCode::Enter => {
                     if self.input_filled() {
                         self.save()?;
-                        self.exit()?
+                        let success_model = SuccessModel::new(
+                            self.event_sender.clone(),
+                            "Database configuration saved successfully.".to_string(),
+                        );
+                        Some(Box::new(SuccessView::new(success_model)))
                     } else {
                         self.next_input()?
                     }
