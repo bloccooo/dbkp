@@ -30,7 +30,10 @@ async fn main() -> Result<()> {
             color_eyre::install().map_err(|e| anyhow!(e))?;
 
             let (_, term_height) = size()?;
-            let viewport_height = 30.min(term_height);
+            let viewport_height = 30.min(term_height.saturating_sub(1));
+
+            // Add top margin to separate TUI from terminal content
+            println!();
 
             enable_raw_mode()?;
             let backend = CrosstermBackend::new(stdout());
