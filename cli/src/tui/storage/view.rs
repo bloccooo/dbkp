@@ -1,7 +1,7 @@
 use ratatui::{
     layout::{Constraint, Direction, Layout},
     symbols,
-    widgets::{Block, Borders},
+    widgets::{Block, Borders, Padding},
 };
 
 use crate::tui::{
@@ -35,7 +35,8 @@ impl View for StorageView {
         let block = Block::new()
             .title("Select storage type")
             .borders(Borders::all())
-            .border_set(symbols::border::ROUNDED);
+            .border_set(symbols::border::ROUNDED)
+            .padding(Padding::uniform(1));
 
         let items: Vec<ListItem> = self
             .storage_model
