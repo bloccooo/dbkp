@@ -1,4 +1,5 @@
 use ratatui::{
+    style::{Color, Style},
     symbols,
     widgets::{Block, Borders, Padding},
 };
@@ -32,9 +33,11 @@ impl View for StorageView {
 
     fn render(&self, frame: &mut ratatui::Frame) {
         let block = Block::new()
-            .title("Select storage type")
+            .title(" Select storage type ")
+            .title_style(Style::default().fg(Color::White))
             .borders(Borders::all())
             .border_set(symbols::border::ROUNDED)
+            .border_style(Style::default().fg(Color::DarkGray))
             .padding(Padding::uniform(1));
 
         let items: Vec<ListItem> = self

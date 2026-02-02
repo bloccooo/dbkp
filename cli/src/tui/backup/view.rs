@@ -2,6 +2,7 @@ use dbkp_core::storage::provider::StorageConfig;
 use ratatui::{
     Frame,
     layout::{Constraint, Flex, Layout},
+    style::{Color, Style},
     symbols,
     widgets::{Block, Borders, Padding, Paragraph, Wrap},
 };
@@ -39,9 +40,11 @@ impl View for BackupView {
 
         if self.backup_model.in_progress {
             let block = Block::new()
-                .title("Backup in progress")
+                .title(" Backup in progress ")
+                .title_style(Style::default().fg(Color::White))
                 .borders(Borders::all())
-                .border_set(symbols::border::ROUNDED);
+                .border_set(symbols::border::ROUNDED)
+                .border_style(Style::default().fg(Color::DarkGray));
 
             let selected_database_config = databse_configs
                 .iter()
@@ -100,9 +103,11 @@ impl View for BackupView {
             .collect();
 
         let block = Block::new()
-            .title("Select Database")
+            .title(" Select Database ")
+            .title_style(Style::default().fg(Color::White))
             .borders(Borders::all())
             .border_set(symbols::border::ROUNDED)
+            .border_style(Style::default().fg(Color::DarkGray))
             .padding(Padding::uniform(1));
         let (list, mut state) = create_list(database_items, column1.width);
         let list = list.block(block);
@@ -138,9 +143,11 @@ impl View for BackupView {
             .collect();
 
         let block = Block::new()
-            .title("Select Storage")
+            .title(" Select Storage ")
+            .title_style(Style::default().fg(Color::White))
             .borders(Borders::all())
             .border_set(symbols::border::ROUNDED)
+            .border_style(Style::default().fg(Color::DarkGray))
             .padding(Padding::uniform(1));
         let (list, mut state) = create_list(storage_items, column2.width);
         let list = list.block(block);

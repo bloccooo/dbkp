@@ -1,5 +1,6 @@
 use ratatui::{
     Frame, symbols,
+    style::{Color, Style},
     widgets::{Block, Borders, Padding},
 };
 
@@ -33,8 +34,10 @@ impl View for HomeView {
     fn render(&self, frame: &mut Frame) {
         let block = Block::new()
             .title(" DBKP - DB Backup & Restore Tool ")
+            .title_style(Style::default().fg(Color::White))
             .borders(Borders::all())
             .border_set(symbols::border::ROUNDED)
+            .border_style(Style::default().fg(Color::DarkGray))
             .padding(Padding::uniform(1));
 
         let items: Vec<ListItem> = self

@@ -2,6 +2,7 @@ use dbkp_core::storage::provider::StorageConfig;
 use ratatui::{
     Frame,
     layout::{Constraint, Flex, Layout},
+    style::{Color, Style},
     symbols,
     widgets::{Block, Borders, Padding, Paragraph, Wrap},
 };
@@ -38,9 +39,11 @@ impl View for RestoreView {
 
         if self.model.in_progress {
             let block = Block::new()
-                .title("Restore in progress")
+                .title(" Restore in progress ")
+                .title_style(Style::default().fg(Color::White))
                 .borders(Borders::all())
-                .border_set(symbols::border::ROUNDED);
+                .border_set(symbols::border::ROUNDED)
+                .border_style(Style::default().fg(Color::DarkGray));
 
             let selected_database_config = database_configs
                 .iter()
@@ -73,8 +76,11 @@ impl View for RestoreView {
                         .areas(row1);
 
                 let block = Block::new()
-                    .title("Select Storage")
+                    .title(" Select Storage ")
+                    .title_style(Style::default().fg(Color::White))
                     .borders(Borders::all())
+                    .border_set(symbols::border::ROUNDED)
+                    .border_style(Style::default().fg(Color::DarkGray))
                     .padding(Padding::uniform(1));
 
                 let storage_items: Vec<ListItem> = self
@@ -114,8 +120,11 @@ impl View for RestoreView {
                 frame.render_stateful_widget(storage_list, column1, &mut state);
 
                 let block = Block::new()
-                    .title("Select Backup")
+                    .title(" Select Backup ")
+                    .title_style(Style::default().fg(Color::White))
                     .borders(Borders::all())
+                    .border_set(symbols::border::ROUNDED)
+                    .border_style(Style::default().fg(Color::DarkGray))
                     .padding(Padding::uniform(1));
 
                 let backup_items: Vec<ListItem> = self
@@ -150,8 +159,11 @@ impl View for RestoreView {
                 }
 
                 let block = Block::new()
-                    .title("Select Target Database")
+                    .title(" Select Target Database ")
+                    .title_style(Style::default().fg(Color::White))
                     .borders(Borders::all())
+                    .border_set(symbols::border::ROUNDED)
+                    .border_style(Style::default().fg(Color::DarkGray))
                     .padding(Padding::uniform(1));
 
                 let databases_items: Vec<ListItem> = self
@@ -182,8 +194,11 @@ impl View for RestoreView {
             }
             RestoreStage::RestoreConfig => {
                 let block = Block::new()
-                    .title("Drop database first")
+                    .title(" Drop database first ")
+                    .title_style(Style::default().fg(Color::White))
                     .borders(Borders::all())
+                    .border_set(symbols::border::ROUNDED)
+                    .border_style(Style::default().fg(Color::DarkGray))
                     .padding(Padding::uniform(1));
 
                 let items: Vec<ListItem> = vec![

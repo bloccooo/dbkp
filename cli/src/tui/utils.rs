@@ -30,9 +30,11 @@ pub fn render_input_form(
     area: Rect,
 ) {
     let block = Block::new()
-        .title(title)
+        .title(format!(" {} ", title))
+        .title_style(Style::default().fg(Color::White))
         .borders(Borders::all())
         .border_set(symbols::border::ROUNDED)
+        .border_style(Style::default().fg(Color::DarkGray))
         .padding(ratatui::widgets::Padding::uniform(1));
 
     let inner_area = block.inner(area);
@@ -161,7 +163,7 @@ pub fn create_list(items: Vec<ListItem>, width: u16) -> (List<'static>, ListStat
                 .style(Style::default().fg(Color::LightBlue))
         } else if item.selected {
             RatatuiListItem::from(format!("{}{}{}", prefix, checkbox, item.label))
-                .style(Style::default().fg(Color::Gray))
+                .style(Style::default().fg(Color::Green))
         } else {
             RatatuiListItem::from(format!("{}{}", prefix, item.label))
         };
