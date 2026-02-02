@@ -3,7 +3,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style},
     symbols,
-    widgets::{Block, Borders, List, ListItem as RatatuiListItem, Paragraph},
+    widgets::{Block, Borders, List, ListItem as RatatuiListItem, ListState, Paragraph},
 };
 use tui_input::Input;
 
@@ -73,15 +73,22 @@ pub struct ListItem {
     pub selected: bool,
 }
 
-pub fn create_list(items: Vec<ListItem>, width: u16) -> List<'static> {
+pub fn create_list(items: Vec<ListItem>, width: u16) -> (List<'static>, ListState) {
     let mut result: Vec<RatatuiListItem> = Vec::new();
     // Account for block borders (2 chars) and some padding
     let separator_width = width.saturating_sub(2) as usize;
     let separator = "─".repeat(separator_width);
 
+    let mut selected_line: Option<usize> = None;
+
     for (i, item) in items.iter().enumerate() {
         let prefix = if item.highlighted { "● " } else { "  " };
         let checkbox = if item.selected { "✓ " } else { "" };
+
+        // Track which line the highlighted item is on (accounting for separators)
+        if item.highlighted {
+            selected_line = Some(result.len());
+        }
 
         let list_item = if item.highlighted {
             RatatuiListItem::from(format!("{}{}{}", prefix, checkbox, item.label))
@@ -104,5 +111,8 @@ pub fn create_list(items: Vec<ListItem>, width: u16) -> List<'static> {
         }
     }
 
-    List::new(result)
+    let mut state = ListState::default();
+    state.select(selected_line);
+
+    (List::new(result), state)
 }

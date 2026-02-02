@@ -58,7 +58,8 @@ impl View for HomeView {
             })
             .collect();
 
-        let list = create_list(items, frame.area().width).block(block);
-        frame.render_widget(list, frame.area());
+        let (list, mut state) = create_list(items, frame.area().width);
+        let list = list.block(block);
+        frame.render_stateful_widget(list, frame.area(), &mut state);
     }
 }

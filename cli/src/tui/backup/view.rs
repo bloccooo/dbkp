@@ -104,8 +104,9 @@ impl View for BackupView {
             .borders(Borders::all())
             .border_set(symbols::border::ROUNDED)
             .padding(Padding::uniform(1));
-        let list = create_list(database_items, column1.width).block(block);
-        frame.render_widget(list, column1);
+        let (list, mut state) = create_list(database_items, column1.width);
+        let list = list.block(block);
+        frame.render_stateful_widget(list, column1, &mut state);
 
         let storage_items: Vec<ListItem> = storage_configs
             .iter()
@@ -141,7 +142,8 @@ impl View for BackupView {
             .borders(Borders::all())
             .border_set(symbols::border::ROUNDED)
             .padding(Padding::uniform(1));
-        let list = create_list(storage_items, column2.width).block(block);
-        frame.render_widget(list, column2);
+        let (list, mut state) = create_list(storage_items, column2.width);
+        let list = list.block(block);
+        frame.render_stateful_widget(list, column2, &mut state);
     }
 }

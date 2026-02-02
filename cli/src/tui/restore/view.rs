@@ -109,8 +109,9 @@ impl View for RestoreView {
                     })
                     .collect();
 
-                let storage_list = create_list(storage_items, column1.width).block(block);
-                frame.render_widget(storage_list, column1);
+                let (storage_list, mut state) = create_list(storage_items, column1.width);
+                let storage_list = storage_list.block(block);
+                frame.render_stateful_widget(storage_list, column1, &mut state);
 
                 let block = Block::new()
                     .title("Select Backup")
@@ -135,7 +136,8 @@ impl View for RestoreView {
                     })
                     .collect();
 
-                let backups_list = create_list(backup_items, column2.width).block(block.clone());
+                let (backups_list, mut backups_state) = create_list(backup_items, column2.width);
+                let backups_list = backups_list.block(block.clone());
 
                 if self.model.loading_backups {
                     let paragraph = Paragraph::new("Loading entries...")
@@ -144,7 +146,7 @@ impl View for RestoreView {
 
                     frame.render_widget(paragraph, column2);
                 } else {
-                    frame.render_widget(backups_list, column2);
+                    frame.render_stateful_widget(backups_list, column2, &mut backups_state);
                 }
 
                 let block = Block::new()
@@ -174,8 +176,9 @@ impl View for RestoreView {
                     })
                     .collect();
 
-                let databases_list = create_list(databases_items, row2.width).block(block);
-                frame.render_widget(databases_list, row2);
+                let (databases_list, mut db_state) = create_list(databases_items, row2.width);
+                let databases_list = databases_list.block(block);
+                frame.render_stateful_widget(databases_list, row2, &mut db_state);
             }
             RestoreStage::RestoreConfig => {
                 let block = Block::new()
@@ -196,8 +199,9 @@ impl View for RestoreView {
                     },
                 ];
 
-                let databases_list = create_list(items, frame.area().width).block(block);
-                frame.render_widget(databases_list, frame.area());
+                let (databases_list, mut state) = create_list(items, frame.area().width);
+                let databases_list = databases_list.block(block);
+                frame.render_stateful_widget(databases_list, frame.area(), &mut state);
             }
         }
     }

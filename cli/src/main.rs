@@ -23,12 +23,28 @@ async fn main() -> Result<()> {
 
     match cli.command.unwrap_or(Commands::TUI) {
         Commands::TUI => {
+            use crossterm::terminal::{disable_raw_mode, enable_raw_mode, size};
+            use ratatui::{Terminal, Viewport, prelude::CrosstermBackend};
+            use std::io::stdout;
+
             color_eyre::install().map_err(|e| anyhow!(e))?;
-            let mut terminal = ratatui::init();
+
+            let (_, term_height) = size()?;
+            let viewport_height = 30.min(term_height);
+
+            enable_raw_mode()?;
+            let backend = CrosstermBackend::new(stdout());
+            let mut terminal = Terminal::with_options(
+                backend,
+                ratatui::TerminalOptions {
+                    viewport: Viewport::Inline(viewport_height),
+                },
+            )?;
+
             let mut app = App::new().map_err(|e| anyhow!(e))?;
             let _res = app.run(&mut terminal).await;
-            terminal.show_cursor()?;
-            ratatui::restore();
+            terminal.clear()?;
+            disable_raw_mode()?;
         }
 
         Commands::Backup(args) => {
