@@ -33,7 +33,7 @@ impl View for HomeView {
 
     fn render(&self, frame: &mut Frame) {
         let block = Block::new()
-            .title(" DBKP - DB Backup & Restore Tool ")
+            .title(format!(" DBKP - DB Backup & Restore Tool v{} ", env!("CARGO_PKG_VERSION")))
             .title_style(Style::default().fg(Color::White))
             .borders(Borders::all())
             .border_set(symbols::border::ROUNDED)
