@@ -38,7 +38,10 @@ impl App {
 
         while self.running {
             match self.events.next().await? {
-                Event::Tick => {}
+                Event::Tick => {
+                    // Re-render to animate spinners
+                    terminal.draw(|f| self.view.render(f))?;
+                }
                 Event::Crossterm(event) => {
                     self.handle_crossterm_event(&event, terminal).await;
                 }

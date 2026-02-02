@@ -1,3 +1,5 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
@@ -6,6 +8,18 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem as RatatuiListItem, ListState},
 };
 use tui_input::Input;
+
+const SPINNER_FRAMES: [char; 4] = ['|', '/', '-', '\\'];
+
+/// Returns the current spinner character based on system time
+pub fn spinner() -> char {
+    let millis = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let frame_index = (millis / 100) as usize % SPINNER_FRAMES.len();
+    SPINNER_FRAMES[frame_index]
+}
 
 pub struct InputItem<'a> {
     pub label: &'a str,

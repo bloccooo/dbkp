@@ -10,7 +10,7 @@ use ratatui::{
 use crate::tui::{
     backup::model::{BackupModel, BackupStage, SelectionMode},
     model::Model,
-    utils::{ListItem, create_list},
+    utils::{ListItem, create_list, spinner},
     view::View,
 };
 
@@ -69,8 +69,10 @@ impl View for BackupView {
                 };
 
                 let text = format!(
-                    "Dumping \"{}\" database in \"{}\" storage...",
-                    database_config.name, storage_name
+                    "{} Dumping \"{}\" database to \"{}\" storage...",
+                    spinner(),
+                    database_config.name,
+                    storage_name
                 );
 
                 let paragraph = Paragraph::new(text).block(block).wrap(Wrap { trim: true });

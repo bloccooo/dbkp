@@ -10,7 +10,7 @@ use ratatui::{
 use crate::tui::{
     model::Model,
     restore::model::{RestoreModel, RestoreStage, SelectionMode},
-    utils::{ListItem, create_list},
+    utils::{ListItem, create_list, spinner},
     view::View,
 };
 
@@ -54,8 +54,10 @@ impl View for RestoreView {
                 && let Some(backup_name) = &self.model.selected_backup_id
             {
                 let text = format!(
-                    "Restoring \"{}\" database with \"{}\" backup...",
-                    database_config.name, backup_name
+                    "{} Restoring \"{}\" database with \"{}\" backup...",
+                    spinner(),
+                    database_config.name,
+                    backup_name
                 );
 
                 let paragraph = Paragraph::new(text).block(block).wrap(Wrap { trim: true });
@@ -150,7 +152,8 @@ impl View for RestoreView {
                 let backups_list = backups_list.block(block.clone());
 
                 if self.model.loading_backups {
-                    let paragraph = Paragraph::new("Loading entries...")
+                    let text = format!("{} Loading entries...", spinner());
+                    let paragraph = Paragraph::new(text)
                         .wrap(Wrap { trim: true })
                         .block(block);
 
