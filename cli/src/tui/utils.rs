@@ -147,6 +147,7 @@ pub fn create_list(items: Vec<ListItem>, width: u16) -> (List<'static>, ListStat
     let separator_width = width.saturating_sub(2) as usize;
     let separator = "─".repeat(separator_width);
 
+    let mut highlighted_line: Option<usize> = None;
     let mut selected_line: Option<usize> = None;
 
     for (i, item) in items.iter().enumerate() {
@@ -155,6 +156,10 @@ pub fn create_list(items: Vec<ListItem>, width: u16) -> (List<'static>, ListStat
 
         // Track which line the highlighted item is on (accounting for separators)
         if item.highlighted {
+            highlighted_line = Some(result.len());
+        }
+        // Also track selected items for scroll position when nothing is highlighted
+        if item.selected {
             selected_line = Some(result.len());
         }
 
@@ -180,7 +185,8 @@ pub fn create_list(items: Vec<ListItem>, width: u16) -> (List<'static>, ListStat
     }
 
     let mut state = ListState::default();
-    state.select(selected_line);
+    // Prefer highlighted line, fall back to selected line to preserve scroll position
+    state.select(highlighted_line.or(selected_line));
 
     (List::new(result), state)
 }
