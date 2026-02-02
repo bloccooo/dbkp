@@ -1,3 +1,5 @@
+use std::sync::atomic::Ordering;
+
 use dbkp_core::storage::provider::StorageConfig;
 use ratatui::{
     Frame,
@@ -10,7 +12,7 @@ use ratatui::{
 use crate::tui::{
     backup::model::{BackupModel, BackupStage, SelectionMode},
     model::Model,
-    utils::{ListItem, create_list, spinner},
+    utils::{ListItem, create_list, format_bytes, spinner},
     view::View,
 };
 
@@ -68,11 +70,15 @@ impl View for BackupView {
                     StorageConfig::S3(config) => &config.name,
                 };
 
+                let bytes = self.backup_model.bytes_written.load(Ordering::Relaxed);
+                let progress_text = format_bytes(bytes);
+
                 let text = format!(
-                    "{} Dumping \"{}\" database to \"{}\" storage...",
+                    "{} Dumping \"{}\" database to \"{}\" storage...\n\nWritten: {}",
                     spinner(),
                     database_config.name,
-                    storage_name
+                    storage_name,
+                    progress_text
                 );
 
                 let paragraph = Paragraph::new(text).block(block).wrap(Wrap { trim: true });

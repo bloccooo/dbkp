@@ -1,4 +1,7 @@
-use std::time::Duration;
+use std::{
+    sync::{Arc, atomic::AtomicU64},
+    time::Duration,
+};
 
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
@@ -36,6 +39,7 @@ pub enum BackupStage {
 #[derive(Clone, Debug)]
 pub struct BackupModel {
     pub in_progress: bool,
+    pub bytes_written: Arc<AtomicU64>,
     pub configs: Configs,
     pub backup_stage: BackupStage,
     pub selection_mode: SelectionMode,
@@ -64,6 +68,7 @@ impl BackupModel {
 
                 return Ok(BackupModel {
                     in_progress: false,
+                    bytes_written: Arc::new(AtomicU64::new(0)),
                     backup_stage: BackupStage::Selection,
                     selection_mode: SelectionMode::DB,
                     configs,
@@ -236,7 +241,9 @@ impl BackupModel {
         storage_config: StorageConfig,
     ) -> Result<()> {
         self.in_progress = true;
+        self.bytes_written.store(0, std::sync::atomic::Ordering::Relaxed);
         let sender = self.event_sender.clone();
+        let bytes_written = self.bytes_written.clone();
 
         let db_name = database_config.name.clone();
         let storage_name = match &storage_config {
@@ -288,7 +295,7 @@ impl BackupModel {
 
             let db_bkp = DbBkp::new(database_connection, storage_provider);
 
-            match db_bkp.backup().await {
+            match db_bkp.backup_with_progress(None, bytes_written).await {
                 Ok(_) => {
                     let success_view = SuccessView::new(SuccessModel::new(
                         sender.clone(),

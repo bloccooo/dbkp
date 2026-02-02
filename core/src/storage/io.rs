@@ -1,9 +1,45 @@
 use std::{
     io::{Error, ErrorKind, Read, Write},
-    sync::mpsc::{channel, Sender},
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+        mpsc::{channel, Sender},
+    },
 };
 
 use crate::storage::provider::{StorageProviderCommand, StorageProviderReadResponse};
+
+/// A writer wrapper that tracks the number of bytes written to an atomic counter.
+/// This is useful for progress reporting during backup operations.
+pub struct ProgressWriter<W: Write> {
+    inner: W,
+    bytes_written: Arc<AtomicU64>,
+}
+
+impl<W: Write> ProgressWriter<W> {
+    pub fn new(inner: W, bytes_written: Arc<AtomicU64>) -> Self {
+        Self {
+            inner,
+            bytes_written,
+        }
+    }
+
+    pub fn into_inner(self) -> W {
+        self.inner
+    }
+}
+
+impl<W: Write> Write for ProgressWriter<W> {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        let n = self.inner.write(buf)?;
+        self.bytes_written.fetch_add(n as u64, Ordering::Relaxed);
+        Ok(n)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.inner.flush()
+    }
+}
 
 #[derive(Clone)]
 pub struct StorageWriter {
