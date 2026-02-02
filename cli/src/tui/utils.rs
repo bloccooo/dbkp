@@ -73,24 +73,36 @@ pub struct ListItem {
     pub selected: bool,
 }
 
-pub fn create_list(items: Vec<ListItem>) -> List<'static> {
-    let items: Vec<RatatuiListItem> = items
-        .iter()
-        .map(|item| {
-            if item.highlighted && item.selected {
-                RatatuiListItem::from(format!("{} {}", "✓", item.label))
-                    .style(Style::default().bg(Color::LightBlue))
-            } else if item.selected {
-                RatatuiListItem::from(format!("{} {}", "✓", item.label))
-                    .style(Style::default().bg(Color::Gray))
-            } else if item.highlighted {
-                RatatuiListItem::from(item.label.clone())
-                    .style(Style::default().bg(Color::LightBlue))
-            } else {
-                RatatuiListItem::from(item.label.clone())
-            }
-        })
-        .collect();
+pub fn create_list(items: Vec<ListItem>, width: u16) -> List<'static> {
+    let mut result: Vec<RatatuiListItem> = Vec::new();
+    // Account for block borders (2 chars) and some padding
+    let separator_width = width.saturating_sub(2) as usize;
+    let separator = "─".repeat(separator_width);
 
-    List::new(items)
+    for (i, item) in items.iter().enumerate() {
+        let prefix = if item.highlighted { "● " } else { "  " };
+        let checkbox = if item.selected { "✓ " } else { "" };
+
+        let list_item = if item.highlighted {
+            RatatuiListItem::from(format!("{}{}{}", prefix, checkbox, item.label))
+                .style(Style::default().fg(Color::LightBlue))
+        } else if item.selected {
+            RatatuiListItem::from(format!("{}{}{}", prefix, checkbox, item.label))
+                .style(Style::default().fg(Color::Gray))
+        } else {
+            RatatuiListItem::from(format!("{}{}", prefix, item.label))
+        };
+
+        result.push(list_item);
+
+        // Add separator line between items (not after the last one)
+        if i < items.len() - 1 {
+            result.push(
+                RatatuiListItem::from(separator.clone())
+                    .style(Style::default().fg(Color::DarkGray)),
+            );
+        }
+    }
+
+    List::new(result)
 }

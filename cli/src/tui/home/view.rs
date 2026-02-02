@@ -1,6 +1,6 @@
 use ratatui::{
     Frame, symbols,
-    widgets::{Block, Borders},
+    widgets::{Block, Borders, Padding},
 };
 
 use crate::tui::{
@@ -32,9 +32,10 @@ impl View for HomeView {
 
     fn render(&self, frame: &mut Frame) {
         let block = Block::new()
-            .title("DBKP - DB Backup & Restore Tool")
+            .title(" DBKP - DB Backup & Restore Tool ")
             .borders(Borders::all())
-            .border_set(symbols::border::ROUNDED);
+            .border_set(symbols::border::ROUNDED)
+            .padding(Padding::uniform(1));
 
         let items: Vec<ListItem> = self
             .home_model
@@ -57,7 +58,7 @@ impl View for HomeView {
             })
             .collect();
 
-        let list = create_list(items).block(block);
+        let list = create_list(items, frame.area().width).block(block);
         frame.render_widget(list, frame.area());
     }
 }

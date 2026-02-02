@@ -3,7 +3,7 @@ use ratatui::{
     Frame,
     layout::{Constraint, Flex, Layout},
     symbols,
-    widgets::{Block, Borders, Paragraph, Wrap},
+    widgets::{Block, Borders, Padding, Paragraph, Wrap},
 };
 
 use crate::tui::{
@@ -102,8 +102,9 @@ impl View for BackupView {
         let block = Block::new()
             .title("Select Database")
             .borders(Borders::all())
-            .border_set(symbols::border::ROUNDED);
-        let list = create_list(database_items).block(block);
+            .border_set(symbols::border::ROUNDED)
+            .padding(Padding::uniform(1));
+        let list = create_list(database_items, column1.width).block(block);
         frame.render_widget(list, column1);
 
         let storage_items: Vec<ListItem> = storage_configs
@@ -138,8 +139,9 @@ impl View for BackupView {
         let block = Block::new()
             .title("Select Storage")
             .borders(Borders::all())
-            .border_set(symbols::border::ROUNDED);
-        let list = create_list(storage_items).block(block);
+            .border_set(symbols::border::ROUNDED)
+            .padding(Padding::uniform(1));
+        let list = create_list(storage_items, column2.width).block(block);
         frame.render_widget(list, column2);
     }
 }

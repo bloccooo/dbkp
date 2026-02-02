@@ -3,7 +3,7 @@ use ratatui::{
     Frame,
     layout::{Constraint, Flex, Layout},
     symbols,
-    widgets::{Block, Borders, Paragraph, Wrap},
+    widgets::{Block, Borders, Padding, Paragraph, Wrap},
 };
 
 use crate::tui::{
@@ -72,7 +72,10 @@ impl View for RestoreView {
                         .flex(Flex::Center)
                         .areas(row1);
 
-                let block = Block::new().title("Select Storage").borders(Borders::all());
+                let block = Block::new()
+                    .title("Select Storage")
+                    .borders(Borders::all())
+                    .padding(Padding::uniform(1));
 
                 let storage_items: Vec<ListItem> = self
                     .model
@@ -106,10 +109,13 @@ impl View for RestoreView {
                     })
                     .collect();
 
-                let storage_list = create_list(storage_items).block(block);
+                let storage_list = create_list(storage_items, column1.width).block(block);
                 frame.render_widget(storage_list, column1);
 
-                let block = Block::new().title("Select Backup").borders(Borders::all());
+                let block = Block::new()
+                    .title("Select Backup")
+                    .borders(Borders::all())
+                    .padding(Padding::uniform(1));
 
                 let backup_items: Vec<ListItem> = self
                     .model
@@ -129,7 +135,7 @@ impl View for RestoreView {
                     })
                     .collect();
 
-                let backups_list = create_list(backup_items).block(block.clone());
+                let backups_list = create_list(backup_items, column2.width).block(block.clone());
 
                 if self.model.loading_backups {
                     let paragraph = Paragraph::new("Loading entries...")
@@ -143,7 +149,8 @@ impl View for RestoreView {
 
                 let block = Block::new()
                     .title("Select Target Database")
-                    .borders(Borders::all());
+                    .borders(Borders::all())
+                    .padding(Padding::uniform(1));
 
                 let databases_items: Vec<ListItem> = self
                     .model
@@ -167,13 +174,14 @@ impl View for RestoreView {
                     })
                     .collect();
 
-                let databases_list = create_list(databases_items).block(block);
+                let databases_list = create_list(databases_items, row2.width).block(block);
                 frame.render_widget(databases_list, row2);
             }
             RestoreStage::RestoreConfig => {
                 let block = Block::new()
                     .title("Drop database first")
-                    .borders(Borders::all());
+                    .borders(Borders::all())
+                    .padding(Padding::uniform(1));
 
                 let items: Vec<ListItem> = vec![
                     ListItem {
@@ -188,7 +196,7 @@ impl View for RestoreView {
                     },
                 ];
 
-                let databases_list = create_list(items).block(block);
+                let databases_list = create_list(items, frame.area().width).block(block);
                 frame.render_widget(databases_list, frame.area());
             }
         }
