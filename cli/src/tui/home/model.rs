@@ -17,7 +17,7 @@ use crate::tui::{
 
 #[derive(Clone, Debug)]
 pub struct HomeModel {
-    pub options: Vec<String>,
+    pub options: Vec<(String, String)>,
     pub highlighted_option_index: i8,
     pub event_sender: mpsc::UnboundedSender<Event>,
 }
@@ -26,20 +26,36 @@ impl HomeModel {
     pub fn new(event_sender: mpsc::UnboundedSender<Event>) -> Result<HomeModel> {
         let configs = Configs::load()?;
 
-        let options = if configs.get_database_configs().len() > 0
-            && configs.get_storage_configs().len() > 0
-        {
+        let storage_configs_count = configs.get_storage_configs().len();
+        let database_configs_count = configs.get_database_configs().len();
+
+        let options = if storage_configs_count > 0 && database_configs_count > 0 {
             vec![
-                "Backup DB".to_string(),
-                "Restore DB".to_string(),
-                "Add DB Connection".to_string(),
-                "Add Storage Provider".to_string(),
-                "Open Configs Folder".to_string(),
+                ("Backup DB".to_string(), "db_backup".to_string()),
+                ("Restore DB".to_string(), "db_restore".to_string()),
+                (
+                    format!("Add DB Connection ({})", database_configs_count),
+                    "add_db_connection".to_string(),
+                ),
+                (
+                    format!("Add Storage Provider ({})", storage_configs_count),
+                    "add_storage_provider".to_string(),
+                ),
+                (
+                    "Open Configs Folder".to_string(),
+                    "open_config_folder".to_string(),
+                ),
             ]
         } else {
             vec![
-                "Add DB Connection".to_string(),
-                "Add Storage Provider".to_string(),
+                (
+                    "Add DB Connection".to_string(),
+                    "add_db_connection".to_string(),
+                ),
+                (
+                    "Add Storage Provider".to_string(),
+                    "open_config_folder".to_string(),
+                ),
             ]
         };
 
@@ -82,24 +98,24 @@ impl HomeModel {
             .get(self.highlighted_option_index as usize)
             .cloned();
 
-        let view: Option<Box<dyn View>> = if let Some(option) = option {
-            if option == "Add DB Connection".to_string() {
+        let view: Option<Box<dyn View>> = if let Some((_, option)) = option {
+            if option == "add_db_connection".to_string() {
                 Some(Box::new(DatabaseView::new(DatabaseModel::new(
                     self.event_sender.clone(),
                 )?)))
-            } else if option == "Add Storage Provider" {
+            } else if option == "add_storage_provider" {
                 Some(Box::new(StorageView::new(StorageModel::new(
                     self.event_sender.clone(),
                 ))))
-            } else if option == "Backup DB" {
+            } else if option == "db_backup" {
                 Some(Box::new(BackupView::new(BackupModel::new(
                     self.event_sender.clone(),
                 )?)))
-            } else if option == "Restore DB" {
+            } else if option == "db_restore" {
                 Some(Box::new(RestoreView::new(RestoreModel::new(
                     self.event_sender.clone(),
                 )?)))
-            } else if option == "Open Configs Folder" {
+            } else if option == "open_config_folder" {
                 let _ = std::process::Command::new("open")
                     .arg(Configs::load()?.config_path.parent().unwrap())
                     .spawn();

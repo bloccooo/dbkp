@@ -1,13 +1,12 @@
 use ratatui::{
-    symbols,
+    Frame, symbols,
     widgets::{Block, Borders},
-    Frame,
 };
 
 use crate::tui::{
     home::model::HomeModel,
     model::Model,
-    utils::{create_list, ListItem},
+    utils::{ListItem, create_list},
     view::View,
 };
 
@@ -41,17 +40,17 @@ impl View for HomeView {
             .home_model
             .options
             .iter()
-            .map(|it| {
+            .map(|(label, it)| {
                 let highlighted = (self.home_model.highlighted_option_index as usize)
                     == self
                         .home_model
                         .options
                         .iter()
-                        .position(|x| x == it)
+                        .position(|(_, x)| x == it)
                         .unwrap();
 
                 ListItem {
-                    label: it.clone(),
+                    label: label.clone(),
                     highlighted,
                     selected: false,
                 }
