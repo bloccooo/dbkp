@@ -17,6 +17,7 @@ use crate::tui::{
     event::Event,
     home::{model::HomeModel, view::HomeView},
     model::Model,
+    success::{model::SuccessModel, view::SuccessView},
     view::View,
 };
 
@@ -237,7 +238,11 @@ impl BackupModel {
         self.in_progress = true;
         let sender = self.event_sender.clone();
 
-        let home_view = HomeView::new(HomeModel::new(sender.clone())?);
+        let db_name = database_config.name.clone();
+        let storage_name = match &storage_config {
+            StorageConfig::Local(config) => config.name.clone(),
+            StorageConfig::S3(config) => config.name.clone(),
+        };
 
         tokio::spawn(async move {
             let database_connection_result = tokio::time::timeout(
@@ -285,7 +290,14 @@ impl BackupModel {
 
             match db_bkp.backup().await {
                 Ok(_) => {
-                    let _ = sender.send(Event::View(Some(Box::new(home_view)))).unwrap();
+                    let success_view = SuccessView::new(SuccessModel::new(
+                        sender.clone(),
+                        format!(
+                            "Backup of \"{}\" database to \"{}\" storage completed successfully.",
+                            db_name, storage_name
+                        ),
+                    ));
+                    let _ = sender.send(Event::View(Some(Box::new(success_view))));
                 }
                 Err(e) => {
                     let error_view = ErrorView::new(ErrorModel::new(

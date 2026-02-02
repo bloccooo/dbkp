@@ -44,7 +44,8 @@ impl View for BackupView {
                 .title_style(Style::default().fg(Color::White))
                 .borders(Borders::all())
                 .border_set(symbols::border::ROUNDED)
-                .border_style(Style::default().fg(Color::DarkGray));
+                .border_style(Style::default().fg(Color::DarkGray))
+                .padding(Padding::uniform(1));
 
             let selected_database_config = database_configs
                 .iter()
@@ -161,9 +162,9 @@ impl View for BackupView {
                 frame.render_stateful_widget(list, column2, &mut state);
             }
             BackupStage::Confirm => {
-                let selected_database_config = database_configs
-                    .iter()
-                    .find(|config| Some(config.id.clone()) == self.backup_model.selected_database_id);
+                let selected_database_config = database_configs.iter().find(|config| {
+                    Some(config.id.clone()) == self.backup_model.selected_database_id
+                });
 
                 let selected_storage_config = storage_configs.iter().find(|config| {
                     let config_id = match config {

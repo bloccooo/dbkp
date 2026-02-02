@@ -43,7 +43,8 @@ impl View for RestoreView {
                 .title_style(Style::default().fg(Color::White))
                 .borders(Borders::all())
                 .border_set(symbols::border::ROUNDED)
-                .border_style(Style::default().fg(Color::DarkGray));
+                .border_style(Style::default().fg(Color::DarkGray))
+                .padding(Padding::uniform(1));
 
             let selected_database_config = database_configs
                 .iter()
@@ -250,7 +251,11 @@ impl View for RestoreView {
                         .border_style(Style::default().fg(Color::Rgb(255, 165, 0)))
                         .padding(Padding::uniform(1));
 
-                    let drop_db_text = if self.model.drop_database { "Yes" } else { "No" };
+                    let drop_db_text = if self.model.drop_database {
+                        "Yes"
+                    } else {
+                        "No"
+                    };
 
                     let text = format!(
                         "Storage: {}\nBackup: {}\nTarget Database: {}\nDrop database first: {}\n\nPress Enter to start restore, Esc to cancel.",

@@ -1,10 +1,11 @@
 use ratatui::{
-    style::{Color, Style},
-    widgets::{Block, Borders, Paragraph, Wrap},
     Frame,
+    style::{Color, Style},
+    symbols,
+    widgets::{Block, Borders, Padding, Paragraph, Wrap},
 };
 
-use crate::tui::{error::model::ErrorModel, model::Model, utils::centered_rect, view::View};
+use crate::tui::{error::model::ErrorModel, model::Model, view::View};
 
 #[derive(Clone, Debug)]
 pub struct ErrorView {
@@ -27,16 +28,19 @@ impl View for ErrorView {
     }
 
     fn render(&self, frame: &mut Frame) {
-        let popup_block = Block::default()
-            .title(self.error_model.title.to_string())
-            .borders(Borders::ALL)
-            .style(Style::default().bg(Color::Red));
+        let block = Block::new()
+            .title(format!(" {} ", self.error_model.title))
+            .title_style(Style::default().fg(Color::White))
+            .borders(Borders::all())
+            .border_set(symbols::border::ROUNDED)
+            .border_style(Style::default().fg(Color::Red))
+            .padding(Padding::uniform(1));
 
-        let paragraph = Paragraph::new(self.error_model.message.to_string())
-            .block(popup_block)
+        let paragraph = Paragraph::new(self.error_model.message.clone())
+            .style(Style::default().fg(Color::Red))
+            .block(block)
             .wrap(Wrap { trim: true });
 
-        let area = centered_rect(60, 25, frame.area());
-        frame.render_widget(paragraph, area);
+        frame.render_widget(paragraph, frame.area());
     }
 }

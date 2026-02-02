@@ -17,6 +17,7 @@ use crate::tui::{
     home::{model::HomeModel, view::HomeView},
     model::Model,
     restore::view::RestoreView,
+    success::{model::SuccessModel, view::SuccessView},
     view::View,
 };
 
@@ -332,11 +333,16 @@ impl RestoreModel {
         {
             let sender = self.event_sender.clone();
 
-            let home_view = HomeView::new(HomeModel::new(sender.clone())?);
             let database_config = database_config.unwrap().clone();
             let storage_config = storage_config.unwrap().clone();
             let backup_id = self.selected_backup_id.clone().unwrap();
             let drop_database = self.drop_database.clone();
+
+            let db_name = database_config.name.clone();
+            let storage_name = match &storage_config {
+                StorageConfig::Local(config) => config.name.clone(),
+                StorageConfig::S3(config) => config.name.clone(),
+            };
 
             tokio::spawn(async move {
                 let database_connection_result = tokio::time::timeout(
@@ -384,14 +390,21 @@ impl RestoreModel {
 
                 match db_bkp
                     .restore(RestoreOptions {
-                        name: backup_id,
+                        name: backup_id.clone(),
                         compression_format: None,
                         drop_database_first: Some(drop_database),
                     })
                     .await
                 {
                     Ok(_) => {
-                        let _ = sender.send(Event::View(Some(Box::new(home_view)))).unwrap();
+                        let success_view = SuccessView::new(SuccessModel::new(
+                            sender.clone(),
+                            format!(
+                                "Restore of \"{}\" backup from \"{}\" storage to \"{}\" database completed successfully.",
+                                backup_id, storage_name, db_name
+                            ),
+                        ));
+                        let _ = sender.send(Event::View(Some(Box::new(success_view))));
                     }
                     Err(e) => {
                         let error_view = ErrorView::new(ErrorModel::new(
