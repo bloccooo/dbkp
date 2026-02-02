@@ -27,9 +27,16 @@ pub enum SelectionMode {
 }
 
 #[derive(Clone, Debug)]
+pub enum BackupStage {
+    Selection,
+    Confirm,
+}
+
+#[derive(Clone, Debug)]
 pub struct BackupModel {
     pub in_progress: bool,
     pub configs: Configs,
+    pub backup_stage: BackupStage,
     pub selection_mode: SelectionMode,
     pub highlight_database_id: String,
     pub highlight_storage_id: String,
@@ -56,6 +63,7 @@ impl BackupModel {
 
                 return Ok(BackupModel {
                     in_progress: false,
+                    backup_stage: BackupStage::Selection,
                     selection_mode: SelectionMode::DB,
                     configs,
                     highlight_database_id: database_config.id.clone(),
@@ -157,7 +165,7 @@ impl BackupModel {
         Ok(Some(Box::new(BackupView::new(self.clone()))))
     }
 
-    fn try_and_restore(&mut self) -> Result<()> {
+    fn try_and_select(&mut self) -> Result<Option<Box<dyn View>>> {
         let database_configs = self.configs.get_database_configs();
         let storage_configs = self.configs.get_storage_configs();
 
@@ -185,6 +193,19 @@ impl BackupModel {
                 };
             }
         };
+
+        // If both are selected, transition to Confirm stage
+        if self.selected_database_id.is_some() && self.selected_storage_id.is_some() {
+            self.backup_stage = BackupStage::Confirm;
+            return Ok(Some(Box::new(BackupView::new(self.clone()))));
+        }
+
+        Ok(None)
+    }
+
+    fn execute_backup(&mut self) -> Result<()> {
+        let database_configs = self.configs.get_database_configs();
+        let storage_configs = self.configs.get_storage_configs();
 
         let database_config = match &self.selected_database_id {
             Some(id) => database_configs.iter().find(|config| config.id == *id),
@@ -285,27 +306,43 @@ impl BackupModel {
 impl Model for BackupModel {
     async fn handle_event(&mut self, event: &CrosstermEvent) -> Result<Option<Box<dyn View>>> {
         if let CrosstermEvent::Key(key) = event {
-            let next_view: Option<Box<dyn View>> = match key.code {
-                KeyCode::Esc => Some(Box::new(HomeView::new(HomeModel::new(
-                    self.event_sender.clone(),
-                )?))),
-                KeyCode::Down => self.select_next()?,
-                KeyCode::Up => self.select_previous()?,
-                KeyCode::Enter | KeyCode::Right => {
-                    self.try_and_restore()?;
-                    self.cycle_through_columns(true)?
-                }
-                KeyCode::Left => self.cycle_through_columns(true)?,
-                _ => Some(Box::new(BackupView::new(BackupModel::new(
-                    self.event_sender.clone(),
-                )?))),
+            let next_view: Option<Box<dyn View>> = match self.backup_stage {
+                BackupStage::Selection => match key.code {
+                    KeyCode::Esc => Some(Box::new(HomeView::new(HomeModel::new(
+                        self.event_sender.clone(),
+                    )?))),
+                    KeyCode::Down => self.select_next()?,
+                    KeyCode::Up => self.select_previous()?,
+                    KeyCode::Enter | KeyCode::Right => {
+                        if let Some(view) = self.try_and_select()? {
+                            Some(view)
+                        } else {
+                            self.cycle_through_columns(true)?
+                        }
+                    }
+                    KeyCode::Left => self.cycle_through_columns(true)?,
+                    _ => Some(Box::new(BackupView::new(self.clone()))),
+                },
+                BackupStage::Confirm => match key.code {
+                    KeyCode::Esc | KeyCode::Left => {
+                        // Go back to selection stage
+                        self.backup_stage = BackupStage::Selection;
+                        self.selected_database_id = None;
+                        self.selected_storage_id = None;
+                        Some(Box::new(BackupView::new(self.clone())))
+                    }
+                    KeyCode::Enter => {
+                        // Execute backup
+                        self.execute_backup()?;
+                        Some(Box::new(BackupView::new(self.clone())))
+                    }
+                    _ => Some(Box::new(BackupView::new(self.clone()))),
+                },
             };
 
             return Ok(next_view);
         }
 
-        Ok(Some(Box::new(BackupView::new(BackupModel::new(
-            self.event_sender.clone(),
-        )?))))
+        Ok(Some(Box::new(BackupView::new(self.clone()))))
     }
 }

@@ -218,6 +218,49 @@ impl View for RestoreView {
                 let databases_list = databases_list.block(block);
                 frame.render_stateful_widget(databases_list, frame.area(), &mut state);
             }
+            RestoreStage::Confirm => {
+                let storage_configs = self.model.configs.get_storage_configs();
+
+                let selected_storage_config = storage_configs.iter().find(|config| {
+                    let config_id = match config {
+                        StorageConfig::Local(config) => &config.id,
+                        StorageConfig::S3(config) => &config.id,
+                    };
+                    Some(config_id.clone()) == self.model.selected_storage_id
+                });
+
+                let selected_database_config = database_configs
+                    .iter()
+                    .find(|config| Some(config.id.clone()) == self.model.selected_database_id);
+
+                if let Some(storage_config) = selected_storage_config
+                    && let Some(database_config) = selected_database_config
+                    && let Some(backup_name) = &self.model.selected_backup_id
+                {
+                    let storage_name = match storage_config {
+                        StorageConfig::Local(config) => &config.name,
+                        StorageConfig::S3(config) => &config.name,
+                    };
+
+                    let block = Block::new()
+                        .title(" Confirm Restore ")
+                        .title_style(Style::default().fg(Color::White))
+                        .borders(Borders::all())
+                        .border_set(symbols::border::ROUNDED)
+                        .border_style(Style::default().fg(Color::Rgb(255, 165, 0)))
+                        .padding(Padding::uniform(1));
+
+                    let drop_db_text = if self.model.drop_database { "Yes" } else { "No" };
+
+                    let text = format!(
+                        "Storage: {}\nBackup: {}\nTarget Database: {}\nDrop database first: {}\n\nPress Enter to start restore, Esc to cancel.",
+                        storage_name, backup_name, database_config.name, drop_db_text
+                    );
+
+                    let paragraph = Paragraph::new(text).block(block).wrap(Wrap { trim: true });
+                    frame.render_widget(paragraph, frame.area());
+                }
+            }
         }
     }
 }

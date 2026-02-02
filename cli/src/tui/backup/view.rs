@@ -8,7 +8,7 @@ use ratatui::{
 };
 
 use crate::tui::{
-    backup::model::{BackupModel, SelectionMode},
+    backup::model::{BackupModel, BackupStage, SelectionMode},
     model::Model,
     utils::{ListItem, create_list},
     view::View,
@@ -35,7 +35,7 @@ impl View for BackupView {
     }
 
     fn render(&self, frame: &mut Frame) {
-        let databse_configs = self.backup_model.configs.get_database_configs();
+        let database_configs = self.backup_model.configs.get_database_configs();
         let storage_configs = self.backup_model.configs.get_storage_configs();
 
         if self.backup_model.in_progress {
@@ -46,7 +46,7 @@ impl View for BackupView {
                 .border_set(symbols::border::ROUNDED)
                 .border_style(Style::default().fg(Color::DarkGray));
 
-            let selected_database_config = databse_configs
+            let selected_database_config = database_configs
                 .iter()
                 .find(|config| Some(config.id.clone()) == self.backup_model.selected_database_id);
 
@@ -78,79 +78,126 @@ impl View for BackupView {
             }
         }
 
-        let [column1, column2] =
-            Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)])
-                .flex(Flex::Center)
-                .areas(frame.area());
+        match self.backup_model.backup_stage {
+            BackupStage::Selection => {
+                let [column1, column2] =
+                    Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)])
+                        .flex(Flex::Center)
+                        .areas(frame.area());
 
-        let database_items: Vec<ListItem> = databse_configs
-            .iter()
-            .map(|config| {
-                let active = matches!(self.backup_model.selection_mode, SelectionMode::DB);
-                let highlighted = self.backup_model.highlight_database_id == config.id && active;
-                let selected = if let Some(selected_id) = &self.backup_model.selected_database_id {
-                    config.id == *selected_id
-                } else {
-                    false
-                };
+                let database_items: Vec<ListItem> = database_configs
+                    .iter()
+                    .map(|config| {
+                        let active = matches!(self.backup_model.selection_mode, SelectionMode::DB);
+                        let highlighted =
+                            self.backup_model.highlight_database_id == config.id && active;
+                        let selected =
+                            if let Some(selected_id) = &self.backup_model.selected_database_id {
+                                config.id == *selected_id
+                            } else {
+                                false
+                            };
 
-                ListItem {
-                    label: config.name.clone(),
-                    highlighted,
-                    selected,
+                        ListItem {
+                            label: config.name.clone(),
+                            highlighted,
+                            selected,
+                        }
+                    })
+                    .collect();
+
+                let block = Block::new()
+                    .title(" Select Database ")
+                    .title_style(Style::default().fg(Color::White))
+                    .borders(Borders::all())
+                    .border_set(symbols::border::ROUNDED)
+                    .border_style(Style::default().fg(Color::DarkGray))
+                    .padding(Padding::uniform(1));
+                let (list, mut state) = create_list(database_items, column1.width);
+                let list = list.block(block);
+                frame.render_stateful_widget(list, column1, &mut state);
+
+                let storage_items: Vec<ListItem> = storage_configs
+                    .iter()
+                    .map(|config| {
+                        let current_id = match config {
+                            StorageConfig::Local(config) => config.id.clone(),
+                            StorageConfig::S3(config) => config.id.clone(),
+                        };
+
+                        let current_name = match config {
+                            StorageConfig::Local(config) => config.name.clone(),
+                            StorageConfig::S3(config) => config.name.clone(),
+                        };
+
+                        let active =
+                            matches!(self.backup_model.selection_mode, SelectionMode::Storage);
+                        let highlighted =
+                            self.backup_model.highlight_storage_id == current_id && active;
+                        let selected =
+                            if let Some(selected_id) = &self.backup_model.selected_storage_id {
+                                current_id == *selected_id
+                            } else {
+                                false
+                            };
+
+                        ListItem {
+                            label: current_name,
+                            highlighted,
+                            selected,
+                        }
+                    })
+                    .collect();
+
+                let block = Block::new()
+                    .title(" Select Storage ")
+                    .title_style(Style::default().fg(Color::White))
+                    .borders(Borders::all())
+                    .border_set(symbols::border::ROUNDED)
+                    .border_style(Style::default().fg(Color::DarkGray))
+                    .padding(Padding::uniform(1));
+                let (list, mut state) = create_list(storage_items, column2.width);
+                let list = list.block(block);
+                frame.render_stateful_widget(list, column2, &mut state);
+            }
+            BackupStage::Confirm => {
+                let selected_database_config = database_configs
+                    .iter()
+                    .find(|config| Some(config.id.clone()) == self.backup_model.selected_database_id);
+
+                let selected_storage_config = storage_configs.iter().find(|config| {
+                    let config_id = match config {
+                        StorageConfig::Local(config) => &config.id,
+                        StorageConfig::S3(config) => &config.id,
+                    };
+                    Some(config_id.clone()) == self.backup_model.selected_storage_id
+                });
+
+                if let Some(database_config) = selected_database_config
+                    && let Some(storage_config) = selected_storage_config
+                {
+                    let storage_name = match storage_config {
+                        StorageConfig::Local(config) => &config.name,
+                        StorageConfig::S3(config) => &config.name,
+                    };
+
+                    let block = Block::new()
+                        .title(" Confirm Backup ")
+                        .title_style(Style::default().fg(Color::White))
+                        .borders(Borders::all())
+                        .border_set(symbols::border::ROUNDED)
+                        .border_style(Style::default().fg(Color::Rgb(255, 165, 0)))
+                        .padding(Padding::uniform(1));
+
+                    let text = format!(
+                        "Database: {}\nStorage: {}\n\nPress Enter to start backup, Esc to cancel.",
+                        database_config.name, storage_name
+                    );
+
+                    let paragraph = Paragraph::new(text).block(block).wrap(Wrap { trim: true });
+                    frame.render_widget(paragraph, frame.area());
                 }
-            })
-            .collect();
-
-        let block = Block::new()
-            .title(" Select Database ")
-            .title_style(Style::default().fg(Color::White))
-            .borders(Borders::all())
-            .border_set(symbols::border::ROUNDED)
-            .border_style(Style::default().fg(Color::DarkGray))
-            .padding(Padding::uniform(1));
-        let (list, mut state) = create_list(database_items, column1.width);
-        let list = list.block(block);
-        frame.render_stateful_widget(list, column1, &mut state);
-
-        let storage_items: Vec<ListItem> = storage_configs
-            .iter()
-            .map(|config| {
-                let current_id = match config {
-                    StorageConfig::Local(config) => config.id.clone(),
-                    StorageConfig::S3(config) => config.id.clone(),
-                };
-
-                let current_name = match config {
-                    StorageConfig::Local(config) => config.name.clone(),
-                    StorageConfig::S3(config) => config.name.clone(),
-                };
-
-                let active = matches!(self.backup_model.selection_mode, SelectionMode::Storage);
-                let highlighted = self.backup_model.highlight_storage_id == current_id && active;
-                let selected = if let Some(selected_id) = &self.backup_model.selected_storage_id {
-                    current_id == *selected_id
-                } else {
-                    false
-                };
-
-                ListItem {
-                    label: current_name,
-                    highlighted,
-                    selected,
-                }
-            })
-            .collect();
-
-        let block = Block::new()
-            .title(" Select Storage ")
-            .title_style(Style::default().fg(Color::White))
-            .borders(Borders::all())
-            .border_set(symbols::border::ROUNDED)
-            .border_style(Style::default().fg(Color::DarkGray))
-            .padding(Padding::uniform(1));
-        let (list, mut state) = create_list(storage_items, column2.width);
-        let list = list.block(block);
-        frame.render_stateful_widget(list, column2, &mut state);
+            }
+        }
     }
 }

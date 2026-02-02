@@ -24,6 +24,7 @@ use crate::tui::{
 pub enum RestoreStage {
     Selection,
     RestoreConfig,
+    Confirm,
 }
 
 #[derive(Clone, Debug)]
@@ -99,6 +100,7 @@ impl RestoreModel {
         match self.restore_stage {
             RestoreStage::Selection => self.highlight_next(),
             RestoreStage::RestoreConfig => self.toggle_drop_database(),
+            RestoreStage::Confirm => Ok(self.self_view()),
         }
     }
 
@@ -106,6 +108,7 @@ impl RestoreModel {
         match self.restore_stage {
             RestoreStage::Selection => self.highlight_previous(),
             RestoreStage::RestoreConfig => self.toggle_drop_database(),
+            RestoreStage::Confirm => Ok(self.self_view()),
         }
     }
 
@@ -419,10 +422,13 @@ impl RestoreModel {
             }
         }
 
+        Ok(self.self_view())
+    }
+
+    fn execute_restore(&mut self) -> Result<Option<Box<dyn View>>> {
         if self.selected_storage_id.is_some()
             && self.selected_backup_id.is_some()
             && self.selected_database_id.is_some()
-            && matches!(self.restore_stage, RestoreStage::RestoreConfig)
         {
             self.restore()?;
             self.in_progress = true;
@@ -443,6 +449,11 @@ impl RestoreModel {
                 model.restore_stage = RestoreStage::Selection;
                 Ok(Some(Box::new(RestoreView::new(model))))
             }
+            RestoreStage::Confirm => {
+                let mut model = self.clone();
+                model.restore_stage = RestoreStage::RestoreConfig;
+                Ok(Some(Box::new(RestoreView::new(model))))
+            }
         }
     }
 
@@ -457,14 +468,19 @@ impl RestoreModel {
                 model.restore_stage = RestoreStage::Selection;
                 Ok(Some(Box::new(RestoreView::new(model))))
             }
+            RestoreStage::Confirm => {
+                let mut model = self.clone();
+                model.restore_stage = RestoreStage::RestoreConfig;
+                Ok(Some(Box::new(RestoreView::new(model))))
+            }
         }
     }
 
     fn handle_key_select(&mut self) -> Result<Option<Box<dyn View>>> {
-        self.try_and_restore()?;
-
         match self.restore_stage {
             RestoreStage::Selection => {
+                self.try_and_restore()?;
+
                 if self.selected_storage_id.is_some()
                     && self.selected_backup_id.is_some()
                     && self.selected_database_id.is_some()
@@ -476,7 +492,16 @@ impl RestoreModel {
 
                 self.cycle_through_columns(true)
             }
-            RestoreStage::RestoreConfig => Ok(self.self_view()),
+            RestoreStage::RestoreConfig => {
+                // Transition to Confirm stage
+                let mut model = self.clone();
+                model.restore_stage = RestoreStage::Confirm;
+                Ok(Some(Box::new(RestoreView::new(model))))
+            }
+            RestoreStage::Confirm => {
+                // Execute the restore
+                self.execute_restore()
+            }
         }
     }
 
