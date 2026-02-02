@@ -1,12 +1,9 @@
-use ratatui::{
-    Frame,
-    layout::{Constraint, Direction, Layout},
-};
+use ratatui::Frame;
 
 use crate::tui::{
     database::model::{CurrentInput, DatabaseModel},
     model::Model,
-    utils::render_input,
+    utils::{InputItem, render_input_form},
     view::View,
 };
 
@@ -31,111 +28,51 @@ impl View for DatabaseView {
     }
 
     fn render(&self, frame: &mut Frame) {
-        let inputs_layout = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(3),
-                Constraint::Length(3),
-                Constraint::Length(3),
-                Constraint::Length(3),
-                Constraint::Length(3),
-                Constraint::Length(3),
-                Constraint::Length(3),
-            ])
-            .split(frame.area());
+        let items = vec![
+            InputItem {
+                label: "Config Name",
+                input: &self.database_model.name_input,
+                active: matches!(self.database_model.current_input, CurrentInput::Name),
+                obfuscate: false,
+            },
+            InputItem {
+                label: "Database Type",
+                input: &self.database_model.type_input,
+                active: matches!(self.database_model.current_input, CurrentInput::Type),
+                obfuscate: false,
+            },
+            InputItem {
+                label: "Database Name",
+                input: &self.database_model.database_input,
+                active: matches!(self.database_model.current_input, CurrentInput::Database),
+                obfuscate: false,
+            },
+            InputItem {
+                label: "Host",
+                input: &self.database_model.host_input,
+                active: matches!(self.database_model.current_input, CurrentInput::Host),
+                obfuscate: false,
+            },
+            InputItem {
+                label: "Port",
+                input: &self.database_model.port_input,
+                active: matches!(self.database_model.current_input, CurrentInput::Port),
+                obfuscate: false,
+            },
+            InputItem {
+                label: "Username",
+                input: &self.database_model.username_input,
+                active: matches!(self.database_model.current_input, CurrentInput::Username),
+                obfuscate: false,
+            },
+            InputItem {
+                label: "Password",
+                input: &self.database_model.password_input,
+                active: matches!(self.database_model.current_input, CurrentInput::Password),
+                obfuscate: true,
+            },
+        ];
 
-        let width = inputs_layout[0].width.max(3) - 3;
-        let scroll = self.database_model.name_input.visual_scroll(width as usize);
-
-        render_input(
-            frame,
-            &self.database_model.name_input,
-            "Config Name",
-            matches!(self.database_model.current_input, CurrentInput::Name),
-            inputs_layout[0],
-            scroll,
-            false,
-        );
-
-        let scroll = self.database_model.type_input.visual_scroll(width as usize);
-
-        render_input(
-            frame,
-            &self.database_model.type_input,
-            "Database Type",
-            matches!(self.database_model.current_input, CurrentInput::Type),
-            inputs_layout[1],
-            scroll,
-            false,
-        );
-
-        let scroll = self
-            .database_model
-            .database_input
-            .visual_scroll(width as usize);
-
-        render_input(
-            frame,
-            &self.database_model.database_input,
-            "Database Name",
-            matches!(self.database_model.current_input, CurrentInput::Database),
-            inputs_layout[2],
-            scroll,
-            false,
-        );
-
-        let scroll = self.database_model.host_input.visual_scroll(width as usize);
-
-        render_input(
-            frame,
-            &self.database_model.host_input,
-            "Host",
-            matches!(self.database_model.current_input, CurrentInput::Host),
-            inputs_layout[3],
-            scroll,
-            false,
-        );
-
-        let scroll = self.database_model.port_input.visual_scroll(width as usize);
-
-        render_input(
-            frame,
-            &self.database_model.port_input,
-            "Port",
-            matches!(self.database_model.current_input, CurrentInput::Port),
-            inputs_layout[4],
-            scroll,
-            false,
-        );
-
-        let scroll = self
-            .database_model
-            .username_input
-            .visual_scroll(width as usize);
-
-        render_input(
-            frame,
-            &self.database_model.username_input,
-            "Username",
-            matches!(self.database_model.current_input, CurrentInput::Username),
-            inputs_layout[5],
-            scroll,
-            false,
-        );
-
-        let scroll = self
-            .database_model
-            .password_input
-            .visual_scroll(width as usize);
-
-        render_input(
-            frame,
-            &self.database_model.password_input,
-            "Password",
-            matches!(self.database_model.current_input, CurrentInput::Password),
-            inputs_layout[6],
-            scroll,
-            true,
-        );
+        render_input_form(frame, "Database Configuration", items, frame.area());
     }
 }

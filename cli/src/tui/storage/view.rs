@@ -1,5 +1,4 @@
 use ratatui::{
-    layout::{Constraint, Direction, Layout},
     symbols,
     widgets::{Block, Borders, Padding},
 };
@@ -7,7 +6,7 @@ use ratatui::{
 use crate::tui::{
     model::Model,
     storage::model::{CurrentInput, StorageModel},
-    utils::{ListItem, create_list, render_input},
+    utils::{InputItem, ListItem, create_list, render_input_form},
     view::View,
 };
 
@@ -86,52 +85,25 @@ impl View for LocalStorageView {
     }
 
     fn render(&self, frame: &mut ratatui::Frame) {
-        let inputs_layout = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(3),
-                Constraint::Length(3),
-                Constraint::Length(3),
-                Constraint::Length(3),
-                Constraint::Length(3),
-                Constraint::Length(3),
-                Constraint::Length(3),
-            ])
-            .split(frame.area());
+        let items = vec![
+            InputItem {
+                label: "Config Name",
+                input: &self.storage_model.input_config_name,
+                active: matches!(&self.storage_model.current_input, CurrentInput::ConfigName),
+                obfuscate: false,
+            },
+            InputItem {
+                label: "Location",
+                input: &self.storage_model.local_input_location,
+                active: matches!(
+                    &self.storage_model.current_input,
+                    CurrentInput::LocalLocation
+                ),
+                obfuscate: false,
+            },
+        ];
 
-        let width = inputs_layout[0].width.max(3) - 3;
-        let scroll = self
-            .storage_model
-            .input_config_name
-            .visual_scroll(width as usize);
-
-        render_input(
-            frame,
-            &self.storage_model.input_config_name,
-            "Config Name",
-            matches!(&self.storage_model.current_input, CurrentInput::ConfigName),
-            inputs_layout[0],
-            scroll,
-            false,
-        );
-
-        let scroll = self
-            .storage_model
-            .local_input_location
-            .visual_scroll(width as usize);
-
-        render_input(
-            frame,
-            &self.storage_model.local_input_location,
-            "Location",
-            matches!(
-                &self.storage_model.current_input,
-                CurrentInput::LocalLocation
-            ),
-            inputs_layout[1],
-            scroll,
-            false,
-        );
+        render_input_form(frame, "Local Storage", items, frame.area());
     }
 }
 
@@ -156,123 +128,51 @@ impl View for S3StorageView {
     }
 
     fn render(&self, frame: &mut ratatui::Frame) {
-        let inputs_layout = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(3),
-                Constraint::Length(3),
-                Constraint::Length(3),
-                Constraint::Length(3),
-                Constraint::Length(3),
-                Constraint::Length(3),
-                Constraint::Length(3),
-            ])
-            .split(frame.area());
+        let items = vec![
+            InputItem {
+                label: "Config Name",
+                input: &self.storage_model.input_config_name,
+                active: matches!(&self.storage_model.current_input, CurrentInput::ConfigName),
+                obfuscate: false,
+            },
+            InputItem {
+                label: "Location",
+                input: &self.storage_model.s3_input_location,
+                active: matches!(&self.storage_model.current_input, CurrentInput::S3Location),
+                obfuscate: false,
+            },
+            InputItem {
+                label: "Bucket",
+                input: &self.storage_model.s3_input_bucket,
+                active: matches!(&self.storage_model.current_input, CurrentInput::S3Bucket),
+                obfuscate: false,
+            },
+            InputItem {
+                label: "Region",
+                input: &self.storage_model.s3_input_region,
+                active: matches!(&self.storage_model.current_input, CurrentInput::S3Region),
+                obfuscate: false,
+            },
+            InputItem {
+                label: "Endpoint",
+                input: &self.storage_model.s3_input_endpoint,
+                active: matches!(&self.storage_model.current_input, CurrentInput::S3Endpoint),
+                obfuscate: false,
+            },
+            InputItem {
+                label: "Access Key",
+                input: &self.storage_model.s3_input_access_key,
+                active: matches!(&self.storage_model.current_input, CurrentInput::S3AccessKey),
+                obfuscate: false,
+            },
+            InputItem {
+                label: "Secret Key",
+                input: &self.storage_model.s3_input_secret_key,
+                active: matches!(&self.storage_model.current_input, CurrentInput::S3SecretKey),
+                obfuscate: true,
+            },
+        ];
 
-        let width = inputs_layout[0].width.max(3) - 3;
-        let scroll = self
-            .storage_model
-            .input_config_name
-            .visual_scroll(width as usize);
-
-        render_input(
-            frame,
-            &self.storage_model.input_config_name,
-            "Config Name",
-            matches!(&self.storage_model.current_input, CurrentInput::ConfigName),
-            inputs_layout[0],
-            scroll,
-            false,
-        );
-
-        let scroll = self
-            .storage_model
-            .s3_input_location
-            .visual_scroll(width as usize);
-
-        render_input(
-            frame,
-            &self.storage_model.s3_input_location,
-            "Location",
-            matches!(&self.storage_model.current_input, CurrentInput::S3Location),
-            inputs_layout[1],
-            scroll,
-            false,
-        );
-
-        let scroll = self
-            .storage_model
-            .s3_input_bucket
-            .visual_scroll(width as usize);
-
-        render_input(
-            frame,
-            &self.storage_model.s3_input_bucket,
-            "Bucket",
-            matches!(&self.storage_model.current_input, CurrentInput::S3Bucket),
-            inputs_layout[2],
-            scroll,
-            false,
-        );
-
-        let scroll = self
-            .storage_model
-            .s3_input_region
-            .visual_scroll(width as usize);
-
-        render_input(
-            frame,
-            &self.storage_model.s3_input_region,
-            "Region",
-            matches!(&self.storage_model.current_input, CurrentInput::S3Region),
-            inputs_layout[3],
-            scroll,
-            false,
-        );
-
-        let scroll = self
-            .storage_model
-            .s3_input_endpoint
-            .visual_scroll(width as usize);
-
-        render_input(
-            frame,
-            &self.storage_model.s3_input_endpoint,
-            "Endpoint",
-            matches!(&self.storage_model.current_input, CurrentInput::S3Endpoint),
-            inputs_layout[4],
-            scroll,
-            false,
-        );
-
-        let scroll = self
-            .storage_model
-            .s3_input_access_key
-            .visual_scroll(width as usize);
-
-        render_input(
-            frame,
-            &self.storage_model.s3_input_access_key,
-            "Access Key",
-            matches!(&self.storage_model.current_input, CurrentInput::S3AccessKey),
-            inputs_layout[5],
-            scroll,
-            false,
-        );
-
-        let scroll = self
-            .storage_model
-            .s3_input_secret_key
-            .visual_scroll(width as usize);
-
-        render_input(
-            frame,
-            &self.storage_model.s3_input_secret_key,
-            "Secret Key",
-            matches!(&self.storage_model.current_input, CurrentInput::S3SecretKey),
-            inputs_layout[6],
-            scroll,
-            false,
-        );
+        render_input_form(frame, "S3 Storage", items, frame.area());
     }
 }

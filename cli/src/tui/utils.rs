@@ -3,45 +3,111 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style},
     symbols,
-    widgets::{Block, Borders, List, ListItem as RatatuiListItem, ListState, Paragraph},
+    widgets::{Block, Borders, List, ListItem as RatatuiListItem, ListState},
 };
 use tui_input::Input;
 
-pub fn render_input(
+pub struct InputItem<'a> {
+    pub label: &'a str,
+    pub input: &'a Input,
+    pub active: bool,
+    pub obfuscate: bool,
+}
+
+/// Renders a form with multiple inputs in a list-like style.
+/// Each input shows a labeled separator line followed by the value.
+/// Example:
+/// ```
+/// ─ Config Name
+/// > my config
+/// ─ Location
+/// > /path/to/backup
+/// ```
+pub fn render_input_form(
     frame: &mut Frame,
-    input: &Input,
     title: &str,
-    is_active: bool,
+    items: Vec<InputItem>,
     area: Rect,
-    scroll: usize,
-    obfuscate: bool,
 ) {
     let block = Block::new()
         .title(title)
-        .borders(Borders::ALL)
+        .borders(Borders::all())
         .border_set(symbols::border::ROUNDED)
-        .border_style(if is_active {
-            Style::default().fg(Color::LightBlue)
+        .padding(ratatui::widgets::Padding::uniform(1));
+
+    let inner_area = block.inner(area);
+    frame.render_widget(block, area);
+
+    // Build list items: each input has label separator line + value line
+    let mut list_items: Vec<RatatuiListItem> = Vec::new();
+    let mut active_line: Option<usize> = None;
+    let mut active_input_info: Option<(&Input, usize)> = None;
+
+    for (i, item) in items.iter().enumerate() {
+        // Label separator line: "── Label"
+        let label_with_spaces = format!(" {} ", item.label);
+        let label_line = format!("─{}", label_with_spaces);
+
+        let label_item = if item.active {
+            RatatuiListItem::from(label_line).style(Style::default().fg(Color::LightBlue))
         } else {
-            Style::default()
-        });
+            RatatuiListItem::from(label_line).style(Style::default().fg(Color::DarkGray))
+        };
+        list_items.push(label_item);
 
-    let value = input.value();
-    let display_value = if obfuscate {
-        "•".repeat(value.len())
-    } else {
-        value.to_string()
-    };
+        // Value line
+        let value = item.input.value();
+        let display_value = if item.obfuscate {
+            "•".repeat(value.len())
+        } else {
+            value.to_string()
+        };
 
-    let paragraph = Paragraph::new(display_value)
-        .scroll((0, scroll as u16))
-        .block(block);
+        // Track which line the active input value is on (for scrolling to show the input)
+        if item.active {
+            active_line = Some(list_items.len());
+        }
 
-    frame.render_widget(paragraph, area);
+        let value_line = if item.active {
+            // Track cursor position info
+            active_input_info = Some((item.input, list_items.len()));
+            RatatuiListItem::from(format!("> {}", display_value))
+                .style(Style::default().fg(Color::LightBlue))
+        } else {
+            RatatuiListItem::from(format!("  {}", display_value))
+                .style(Style::default().fg(Color::Gray))
+        };
+        list_items.push(value_line);
 
-    if is_active {
-        let x = input.visual_cursor().max(scroll) - scroll + 1;
-        frame.set_cursor_position((area.x + x as u16, area.y + 1));
+        // Add blank line between items (not after the last one)
+        if i < items.len() - 1 {
+            list_items.push(RatatuiListItem::from(""));
+        }
+    }
+
+    let list = List::new(list_items);
+    let mut state = ListState::default();
+    state.select(active_line);
+
+    frame.render_stateful_widget(list, inner_area, &mut state);
+
+    // Set cursor position for active input
+    if let Some((input, value_line_idx)) = active_input_info {
+        // Calculate the y position based on scroll offset and line index
+        let offset = state.offset();
+        let visible_line = value_line_idx.saturating_sub(offset);
+
+        // Only show cursor if the value line is visible
+        if visible_line < inner_area.height as usize {
+            let width = inner_area.width.saturating_sub(4); // Account for "> " prefix and padding
+            let scroll = input.visual_scroll(width as usize);
+            let cursor_x = input.visual_cursor().max(scroll) - scroll;
+
+            frame.set_cursor_position((
+                inner_area.x + 2 + cursor_x as u16, // 2 = "> " prefix
+                inner_area.y + visible_line as u16,
+            ));
+        }
     }
 }
 
