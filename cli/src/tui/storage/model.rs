@@ -283,6 +283,7 @@ impl Model for StorageModel {
                         KeyCode::Esc => {
                             let mut model = self.clone();
                             model.current_storage_config = None;
+                            model.current_input = CurrentInput::ConfigName;
 
                             let view: Option<Box<dyn View>> =
                                 Some(Box::new(StorageView::new(model)));
@@ -318,6 +319,7 @@ impl Model for StorageModel {
                         let next_view: Option<Box<dyn View>> = if let Some(option) = selected_option
                         {
                             if option == "Local" {
+                                self.current_input = CurrentInput::ConfigName;
                                 self.current_storage_config =
                                     Some(StorageConfig::Local(LocalStorageConfig {
                                         id: cuid2::create_id(),
@@ -327,6 +329,8 @@ impl Model for StorageModel {
 
                                 Some(Box::new(LocalStorageView::new(self.clone())))
                             } else {
+                                self.current_input = CurrentInput::ConfigName;
+
                                 let default_endpoint: String =
                                     "https://s3.pub1.infomaniak.cloud".into();
                                 let default_access_key: String = "".into();
