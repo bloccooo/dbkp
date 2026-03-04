@@ -3,7 +3,7 @@
 set -e
 
 # Configuration
-VERSION="4.2.1"  # Update this with your latest version
+VERSION="4.3.0"  # Update this with your latest version
 BINARY_NAME="dbkp"
 INSTALL_DIR="/usr/local/bin"
 GITHUB_REPO="bloccooo/dbkp"  # Updated with your actual repo
