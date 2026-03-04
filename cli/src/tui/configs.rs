@@ -20,7 +20,11 @@ impl Configs {
 
         if config_path.exists() {
             let content = fs::read_to_string(&config_path)?;
-            let app_storage: Self = serde_json::from_str(&content)?;
+            let mut app_storage: Self = serde_json::from_str(&content)?;
+            if app_storage.config_path != config_path {
+                app_storage.config_path = config_path;
+                app_storage.save()?;
+            }
 
             return Ok(app_storage);
         } else {
