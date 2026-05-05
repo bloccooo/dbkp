@@ -5,3 +5,4 @@ postgres_data
 mysql_data
 test-backups*
 .env
+dist
