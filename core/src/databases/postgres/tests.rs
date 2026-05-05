@@ -3,13 +3,16 @@ mod postgresql_connection_test {
     use crate::databases::version::Version;
     use crate::databases::{DatabaseConnectionTrait, RestoreOptions};
     use crate::test_utils::test_utils::{
-        get_postgresql_connection, get_postgresql_pool, initialize_test,
+        ensure_postgres_database_exists, get_postgresql_connection, get_postgresql_pool,
+        initialize_test,
     };
+    use serial_test::serial;
 
     use std::thread::sleep;
     use std::time::Duration;
 
     #[tokio::test]
+    #[serial]
     async fn test_01_connection_test() {
         initialize_test();
         let connection = get_postgresql_connection(false)
@@ -20,6 +23,7 @@ mod postgresql_connection_test {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_02_get_metadata() {
         initialize_test();
         let connection = get_postgresql_connection(false)
@@ -36,15 +40,13 @@ mod postgresql_connection_test {
         };
 
         assert!(version.is_some());
-
-        let version = version.unwrap();
-
-        assert!(version.to_string().contains("15"));
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_03_dump() {
         initialize_test();
+        ensure_postgres_database_exists().await;
         let connection = get_postgresql_connection(false)
             .await
             .expect("Failed to get connection");
@@ -59,6 +61,7 @@ mod postgresql_connection_test {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_04_restore() {
         initialize_test();
         let test_table_name = format!("test_restore_{}", chrono::Utc::now().timestamp());

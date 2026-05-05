@@ -406,11 +406,21 @@ mod storage_tests {
     mod s3_storage_tests {
         use super::*;
         use serial_test::serial;
+        use std::env;
+
+        fn has_s3_credentials() -> bool {
+            !env::var("S3_ACCESS_KEY").unwrap_or_default().is_empty()
+                && !env::var("S3_SECRET_KEY").unwrap_or_default().is_empty()
+        }
 
         #[tokio::test]
         #[serial]
         async fn test_connection_and_basic_operations() {
             initialize_test();
+            if !has_s3_credentials() {
+                println!("Skipping S3 test - no credentials available");
+                return;
+            }
             let provider = get_s3_provider().expect("Unable to get s3 provider");
 
             // Test connection
@@ -425,6 +435,10 @@ mod storage_tests {
         #[serial]
         async fn test_write_and_read_operations() {
             initialize_test();
+            if !has_s3_credentials() {
+                println!("Skipping S3 test - no credentials available");
+                return;
+            }
             let provider = get_s3_provider().expect("Unable to get s3 provider");
             // provider
             //     .test()
@@ -456,12 +470,11 @@ mod storage_tests {
         #[serial]
         async fn test_list_operations() {
             initialize_test();
-            let provider = get_s3_provider().expect("Unable to get s3 provider");
-
-            if provider.test().await.is_err() {
-                println!("Skipping S3 tests - S3 connection failed");
+            if !has_s3_credentials() {
+                println!("Skipping S3 test - no credentials available");
                 return;
             }
+            let provider = get_s3_provider().expect("Unable to get s3 provider");
 
             let timestamp = Utc::now().timestamp();
             let test_files = vec![

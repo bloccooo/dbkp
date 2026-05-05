@@ -54,7 +54,7 @@ impl HomeModel {
                 ),
                 (
                     "Add Storage Provider".to_string(),
-                    "open_config_folder".to_string(),
+                    "add_storage_provider".to_string(),
                 ),
             ]
         };

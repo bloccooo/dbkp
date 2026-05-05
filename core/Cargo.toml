@@ -44,6 +44,6 @@ sqlx = { version = "0.8.5", features = [ "runtime-tokio", "tls-rustls", "postgre
 futures = "0.3.31"
 # For SSH2, we'll add a feature flag to conditionally include it
 ssh2 = { version = "0.9.5", optional = true }
-xz2 = "0.1.7"
+xz2 = { version = "0.1.7", features = ["static"] }
 # Add openssl-sys as a direct dependency to control vendored feature
 openssl-sys = { version = "0.9", optional = true }

@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod vprdbbkp_tests {
     use anyhow::Result;
+    use serial_test::serial;
     use std::env;
     use tempfile::tempdir;
 
@@ -89,6 +90,7 @@ mod vprdbbkp_tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_01_postgresql_backup() {
         initialize_test();
         let config = get_postgresql_config().expect("Failed to get postgresql config");
@@ -180,6 +182,7 @@ mod vprdbbkp_tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_03_mysql_backup() {
         initialize_test();
         let config = get_mysql_config().expect("Failed to get mysql config");

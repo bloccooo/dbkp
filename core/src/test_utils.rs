@@ -25,12 +25,41 @@ pub mod test_utils {
             .ok();
     }
 
+    /// Ensures the test database exists, creating it if a previous test run dropped it.
+    pub async fn ensure_postgres_database_exists() {
+        let port: u16 = env::var("POSTGRESQL_PORT").unwrap_or("0".into()).parse().unwrap_or(5432);
+        let password = env::var("POSTGRESQL_PASSWORD").unwrap_or_default();
+        let host = env::var("POSTGRESQL_HOST").unwrap_or_default();
+        let username = env::var("POSTGRESQL_USERNAME").unwrap_or_default();
+        let database = env::var("POSTGRESQL_NAME").unwrap_or_default();
+
+        let admin_options = PgConnectOptions::new()
+            .host(&host)
+            .username(&username)
+            .database("postgres")
+            .password(&password)
+            .port(port);
+
+        if let Ok(admin_pool) = PgPoolOptions::new()
+            .max_connections(1)
+            .acquire_timeout(Duration::from_secs(5))
+            .connect_with(admin_options)
+            .await
+        {
+            let _ = sqlx::query(&format!("CREATE DATABASE \"{}\"", database))
+                .execute(&admin_pool)
+                .await;
+        }
+    }
+
     pub async fn get_postgresql_pool() -> Result<Pool<Postgres>> {
         let port: u16 = env::var("POSTGRESQL_PORT").unwrap_or("0".into()).parse()?;
         let password = env::var("POSTGRESQL_PASSWORD").unwrap_or_default();
         let host: String = env::var("POSTGRESQL_HOST").unwrap_or_default();
         let username: String = env::var("POSTGRESQL_USERNAME").unwrap_or_default();
         let database: String = env::var("POSTGRESQL_NAME").unwrap_or_default();
+
+        ensure_postgres_database_exists().await;
 
         let connect_options = PgConnectOptions::new()
             .host(&host)
