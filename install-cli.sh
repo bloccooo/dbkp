@@ -3,10 +3,9 @@
 set -e
 
 # Configuration
-VERSION="4.3.0"  # Update this with your latest version
 BINARY_NAME="dbkp"
 INSTALL_DIR="/usr/local/bin"
-GITHUB_REPO="bloccooo/dbkp"  # Updated with your actual repo
+GITHUB_REPO="bloccooo/dbkp"
 
 # Parse command line arguments
 INSTALL_FROM_SOURCE=false
@@ -48,6 +47,22 @@ for arg in "$@"; do
       ;;
   esac
 done
+
+# Fetch the latest release version from GitHub
+fetch_latest_version() {
+  local version
+  version=$(curl -fsSL "https://api.github.com/repos/$GITHUB_REPO/releases/latest" \
+    | grep '"tag_name"' \
+    | sed 's/.*"tag_name": *"v\([^"]*\)".*/\1/')
+  if [ -z "$version" ]; then
+    echo "Error: Could not determine the latest version from GitHub." >&2
+    exit 1
+  fi
+  echo "$version"
+}
+
+VERSION=$(fetch_latest_version)
+echo "Latest version: $VERSION"
 
 # Detect OS
 OS="unknown"
