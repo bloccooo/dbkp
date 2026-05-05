@@ -153,9 +153,7 @@ impl View for RestoreView {
 
                 if self.model.loading_backups {
                     let text = format!("{} Loading entries...", spinner());
-                    let paragraph = Paragraph::new(text)
-                        .wrap(Wrap { trim: true })
-                        .block(block);
+                    let paragraph = Paragraph::new(text).wrap(Wrap { trim: true }).block(block);
 
                     frame.render_widget(paragraph, column2);
                 } else {

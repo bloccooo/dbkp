@@ -1,6 +1,7 @@
 use ratatui::{
-    Frame, symbols,
+    Frame,
     style::{Color, Style},
+    symbols,
     widgets::{Block, Borders, Padding},
 };
 
@@ -33,7 +34,10 @@ impl View for HomeView {
 
     fn render(&self, frame: &mut Frame) {
         let block = Block::new()
-            .title(format!(" DBKP - DB Backup & Restore Tool v{} ", env!("CARGO_PKG_VERSION")))
+            .title(format!(
+                " DBKP - DB Backup & Restore Tool v{} ",
+                env!("CARGO_PKG_VERSION")
+            ))
             .title_style(Style::default().fg(Color::White))
             .borders(Borders::all())
             .border_set(symbols::border::ROUNDED)

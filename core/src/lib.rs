@@ -1,6 +1,6 @@
 use std::{
     io::Write,
-    sync::{Arc, atomic::AtomicU64},
+    sync::{atomic::AtomicU64, Arc},
 };
 
 use anyhow::{anyhow, Result};
@@ -9,7 +9,10 @@ use compression::{CompressionFormat, Compressor, Decompressor};
 use databases::DatabaseConnection;
 use flate2::Compression;
 use serde::{Deserialize, Serialize};
-use storage::{io::ProgressWriter, provider::{ListOptions, StorageProvider}};
+use storage::{
+    io::ProgressWriter,
+    provider::{ListOptions, StorageProvider},
+};
 
 use crate::storage::Entry;
 

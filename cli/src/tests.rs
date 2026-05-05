@@ -59,8 +59,10 @@ mod tests {
             .expect("Failed to execute command");
 
         assert!(backup_output.status.success());
-        assert!(String::from_utf8_lossy(&backup_output.stdout)
-            .contains("Backup completed successfully"));
+        assert!(
+            String::from_utf8_lossy(&backup_output.stdout)
+                .contains("Backup completed successfully")
+        );
 
         cmd = Command::cargo_bin("cli").expect("Failed to get cli command");
 
@@ -96,8 +98,10 @@ mod tests {
             .output()
             .expect("Failed to execute command");
 
-        assert!(String::from_utf8_lossy(&restore_output.stdout)
-            .contains("Restore completed successfully"));
+        assert!(
+            String::from_utf8_lossy(&restore_output.stdout)
+                .contains("Restore completed successfully")
+        );
 
         cmd = Command::cargo_bin("cli").expect("Failed to get cli command");
 

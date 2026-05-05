@@ -241,7 +241,8 @@ impl BackupModel {
         storage_config: StorageConfig,
     ) -> Result<()> {
         self.in_progress = true;
-        self.bytes_written.store(0, std::sync::atomic::Ordering::Relaxed);
+        self.bytes_written
+            .store(0, std::sync::atomic::Ordering::Relaxed);
         let sender = self.event_sender.clone();
         let bytes_written = self.bytes_written.clone();
 

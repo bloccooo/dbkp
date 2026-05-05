@@ -3,7 +3,7 @@ mod cli_test {
     use dbkp_core::databases::ConnectionType;
 
     use crate::cli::{
-        database_config_from_cli, storage_from_cli, DatabaseArgs, SshArgs, StorageArgs,
+        DatabaseArgs, SshArgs, StorageArgs, database_config_from_cli, storage_from_cli,
     };
 
     #[test]

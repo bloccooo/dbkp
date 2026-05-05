@@ -1,9 +1,9 @@
 use std::{
     io::{Error, ErrorKind, Read, Write},
     sync::{
-        Arc,
         atomic::{AtomicU64, Ordering},
         mpsc::{channel, Sender},
+        Arc,
     },
 };
 

@@ -27,7 +27,10 @@ pub mod test_utils {
 
     /// Ensures the test database exists, creating it if a previous test run dropped it.
     pub async fn ensure_postgres_database_exists() {
-        let port: u16 = env::var("POSTGRESQL_PORT").unwrap_or("0".into()).parse().unwrap_or(5432);
+        let port: u16 = env::var("POSTGRESQL_PORT")
+            .unwrap_or("0".into())
+            .parse()
+            .unwrap_or(5432);
         let password = env::var("POSTGRESQL_PASSWORD").unwrap_or_default();
         let host = env::var("POSTGRESQL_HOST").unwrap_or_default();
         let username = env::var("POSTGRESQL_USERNAME").unwrap_or_default();
