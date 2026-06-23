@@ -12,6 +12,7 @@ use crate::tui::{
     model::Model,
     restore::{model::RestoreModel, view::RestoreView},
     storage::{model::StorageModel, view::StorageView},
+    success::{model::SuccessModel, view::SuccessView},
     view::View,
 };
 
@@ -45,6 +46,7 @@ impl HomeModel {
                     "Open Configs Folder".to_string(),
                     "open_config_folder".to_string(),
                 ),
+                ("Copy Config".to_string(), "copy_config".to_string()),
             ]
         } else {
             vec![
@@ -121,6 +123,14 @@ impl HomeModel {
                     .spawn();
 
                 None
+            } else if option == "copy_config" {
+                let content = std::fs::read_to_string(&Configs::load()?.config_path)?;
+                let _ = arboard::Clipboard::new().and_then(|mut cb| cb.set_text(content));
+
+                Some(Box::new(SuccessView::new(SuccessModel::new(
+                    self.event_sender.clone(),
+                    "Config copied to clipboard".to_string(),
+                ))))
             } else {
                 None
             }

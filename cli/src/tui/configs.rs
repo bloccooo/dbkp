@@ -1,6 +1,7 @@
 use anyhow::{Result, anyhow};
 use dbkp_core::{databases::DatabaseConfig, storage::provider::StorageConfig};
 use serde::{Deserialize, Serialize};
+use std::env;
 use std::{borrow::Borrow, fs, path::PathBuf};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -12,22 +13,27 @@ pub struct Configs {
 
 impl Configs {
     pub fn load() -> Result<Self> {
-        let config_dir = dirs::config_dir()
-            .ok_or_else(|| anyhow!("Could not determine config directory"))?
-            .join("dbkp");
+        let config_path = match env::var("DBKP_CONFIG_PATH") {
+            Ok(path) => PathBuf::from(path),
+            Err(_) => {
+                let config_dir = dirs::config_dir()
+                    .ok_or_else(|| anyhow!("Could not determine config directory"))?
+                    .join("dbkp");
 
-        let config_path = config_dir.join("app_storage.json");
-
-        if config_path.exists() {
-            let content = fs::read_to_string(&config_path)?;
-            let mut app_storage: Self = serde_json::from_str(&content)?;
-            if app_storage.config_path != config_path {
-                app_storage.config_path = config_path;
-                app_storage.save()?;
+                config_dir.join("app_storage.json")
             }
+        };
 
-            return Ok(app_storage);
-        } else {
+        let config_dir = match config_path.parent() {
+            Some(parent) => parent,
+            None => {
+                return Err(anyhow!(
+                    "Unable to get parent directory for the config path"
+                ));
+            }
+        };
+
+        if !config_path.exists() {
             fs::create_dir_all(&config_dir)?;
 
             let app_storage = Self {
@@ -37,10 +43,17 @@ impl Configs {
             };
 
             let content = serde_json::to_string_pretty(&app_storage)?;
-            fs::write(config_path, content)?;
-
-            return Ok(app_storage);
+            fs::write(&config_path, content)?;
         }
+
+        let content = fs::read_to_string(&config_path)?;
+        let mut app_storage: Self = serde_json::from_str(&content)?;
+        if app_storage.config_path != config_path {
+            app_storage.config_path = config_path;
+            app_storage.save()?;
+        }
+
+        return Ok(app_storage);
     }
 
     fn save(&self) -> Result<()> {
