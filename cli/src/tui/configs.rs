@@ -90,3 +90,35 @@ impl Configs {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serial_test::serial;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    #[test]
+    #[serial]
+    fn test_load_from_env_var_path() {
+        let mut file = NamedTempFile::new().unwrap();
+        let path = file.path().to_path_buf();
+
+        let config = Configs {
+            config_path: path.clone(),
+            database_configs: vec![],
+            storage_configs: vec![],
+        };
+        write!(file, "{}", serde_json::to_string_pretty(&config).unwrap()).unwrap();
+
+        // SAFETY: single-threaded test context, guarded by #[serial]
+        unsafe { env::set_var("DBKP_CONFIG_PATH", &path) };
+        let result = Configs::load();
+        unsafe { env::remove_var("DBKP_CONFIG_PATH") };
+
+        let loaded = result.unwrap();
+        assert_eq!(loaded.config_path, path);
+        assert!(loaded.database_configs.is_empty());
+        assert!(loaded.storage_configs.is_empty());
+    }
+}
