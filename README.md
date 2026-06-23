@@ -62,6 +62,18 @@ The TUI provides:
 
 You can exit the TUI at any time using `esc`.
 
+## Configuration
+
+By default, dbkp stores its configuration at `~/.config/dbkp/app_storage.json`. You can override this path with the `DBKP_CONFIG_PATH` environment variable:
+
+```bash
+DBKP_CONFIG_PATH=/path/to/config.json dbkp
+```
+
+This is useful for managing multiple configuration profiles or running dbkp in environments where the default config directory is not suitable (e.g. CI servers, shared machines).
+
+You can export the current configuration from the TUI home screen using the **Copy Config** option, which copies the raw JSON to your clipboard.
+
 ## CLI Documentation
 
 For detailed CLI usage, commands, parameters, and examples, see the [CLI Documentation](/cli/README.md).
