@@ -51,15 +51,15 @@ done
 # Fetch the latest release version from GitHub
 fetch_latest_version() {
   local version
-  version=$(curl -fsSL "https://api.github.com/repos/$GITHUB_REPO/releases/latest" \
-    | grep '"tag_name"' \
-    | sed 's/.*"tag_name": *"v\([^"]*\)".*/\1/')
+  version=$(curl -fsSL -o /dev/null -w '%{url_effective}' "https://github.com/$GITHUB_REPO/releases/latest" \
+    | sed 's#.*/tag/v##')
   if [ -z "$version" ]; then
     echo "Error: Could not determine the latest version from GitHub." >&2
     exit 1
   fi
   echo "$version"
 }
+
 
 VERSION=$(fetch_latest_version)
 echo "Latest version: $VERSION"
